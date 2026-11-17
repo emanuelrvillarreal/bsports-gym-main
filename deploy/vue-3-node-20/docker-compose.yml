@@ -1,0 +1,22 @@
+name: ${CONTAINER_NAME}
+
+services:
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/vue-3-node-20/Dockerfile
+      args:
+        VITE_BUILD_MODE: ${VITE_BUILD_MODE:-production}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${EXTERNAL_PORT}:80"
+    env_file:
+      - path: ../runtime.env
+        required: false
+    volumes:
+      - ${LOGS_VOLUME:-/var/log}/${CONTAINER_NAME}:/var/log/nginx

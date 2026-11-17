@@ -1,0 +1,10 @@
+package com.blue.open.Code.Repository.Custom;
+
+import com.blue.open.Code.Entity.Db.Member;
+import com.blue.open.Core.Entity.DTO.PaginateList;
+import org.springframework.data.domain.Page;
+
+public interface MemberRepositoryCustom {
+
+    Page<Member> paginate(PaginateList paginateList);
+}

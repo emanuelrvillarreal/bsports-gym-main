@@ -1,0 +1,17 @@
+name: ${CONTAINER_NAME}
+
+services:
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/nginx-1.27/Dockerfile
+      args:
+        STATIC_DIR: ${STATIC_DIR:-public}
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file:
+      - path: ../runtime.env
+        required: false
+    ports:
+      - "${EXTERNAL_PORT}:80"

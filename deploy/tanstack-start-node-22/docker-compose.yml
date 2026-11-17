@@ -1,0 +1,23 @@
+name: ${CONTAINER_NAME}
+
+services:
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/tanstack-start-node-22/Dockerfile
+      args:
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+        VITE_BUILD_MODE: ${VITE_BUILD_MODE:-production}
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    ports:
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT}"
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: ${INTERNAL_PORT}
+      HOST: 0.0.0.0
+      APP_BASE_PATH: ${VITE_BASE_PATH:-/}

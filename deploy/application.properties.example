@@ -1,0 +1,132 @@
+# Server (port y nombre del proyecto provienen de deploy.yml vía deploy.sh / docker-compose)
+server.port=${SERVER_PORT}
+server.servlet.context-path=/api
+
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=CAMBIAR
+spring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults=false
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.open-in-view=false
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MariaDBDialect
+spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.yaml
+logging.level.liquibase.database=WARN
+logging.level.org.hibernate.orm.deprecation=ERROR
+
+# Front: url general; las específicas vacías usan front.url
+front.url=${FRONT_URL}
+# Correos registro/recuperación (vacío = front.url)
+front.url.mail=
+# CORS WebSocket, lista separada por comas (vacío = front.url)
+front.url.websocket=https://stg.blueopendata.com/bsports-club,https://stg.blueopendata.com
+
+# webservices
+crypter.url=https://stg.blueopendata.com/crypter/api
+crypter.tipo.documento=3
+crypter.user=admin
+crypter.pass=CAMBIAR
+sm3.url=${SM3_URL}
+sm3.proyecto=${SM3_PROYECTO}
+sm3.user=${SM3_USER}
+sm3.pass=CAMBIAR
+
+# CRM (integracion blue-crm): modulo de integraciones.
+# CRM_API_TOKEN es el JWT emitido por el CRM al crear el sistema externo; el CRM lo compara
+# byte a byte contra integraciones_sistemas_externos.token, no sirve generar uno nuevo.
+crm.base.url=${CRM_BASE_URL}
+crm.api.token=CAMBIAR
+# Maximo de caracteres que se guardan de cada payload en crm_integracion_logs
+crm.integracion.logs.max-payload-chars=100000
+
+## Auth
+jwt.secret=CAMBIAR
+jwt.expiration=86400000
+#
+# Protocolos válidos: basic,sso,malvinas,tokens,jwt
+# Tienen que estar separados por comas
+# ej: auth.protocols=basic,sso,malvinas,tokens,jwt
+auth.protocols=basic,tokens,jwt
+#
+auth.rbac.sync-roles-on-startup=true
+auth.rbac.role-sync-mode=replace
+#
+auth.sso.clientId=bsports-club
+auth.sso.url=https://stg.blueopendata.com/sso/api
+#
+auth.malvinas.url=https://sb-idp.malvinasargentinas.gob.ar/.well-known/jwks
+
+# Locate
+spring.jackson.time-zone=America/Argentina/Buenos_Aires
+spring.jackson.locale=es_AR
+
+# Logs (basename es propiedad custom de logback-spring.xml, no confundir con logging.file.name de Spring Boot) dentro del contenedor (WORKDIR /app). En servidor, compose monta /var/log/<CONTAINER_NAME> -> /app/logs
+logging.file.path=/app/logs
+logging.file.basename=${LOGGING_FILE_BASENAME}
+
+# Multipart
+spring.servlet.multipart.enabled=true
+spring.servlet.multipart.file-size-threshold=2KB
+spring.servlet.multipart.max-file-size=20MB
+spring.servlet.multipart.max-request-size=22MB
+spring.datasource.hikari.leak-detection-threshold=30000
+
+# Mail
+mail.option=smtp
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=noresponder.blueopendata@gmail.com
+spring.mail.password=CAMBIAR
+spring.mail.protocol=smtp
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.debug=true
+
+# HCaptcha
+captcha.secret=CAMBIAR
+captcha.enabled=false
+
+# Credenciales Mercado Pago: clave AES-256 codificada en Base64 y provista por entorno.
+mercado-pago.credentials.encryption-key=CAMBIAR
+
+# Actuator: GET /api/actuator/health (detras de nginx stg: /{path}/api/actuator/health; path en deploy.yml)
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=never
+
+# Swagger: la UI usa openapi.yaml estatico (swagger-ui.url). api-docs=true activa SpringDocConfiguration,
+# condicion necesaria para registrar Swagger UI; sin esto /swagger-ui responde 404.
+springdoc.api-docs.enabled=true
+springdoc.swagger-ui.url=openapi.yaml
+springdoc.swagger-ui.disable-swagger-default-url=true
+
+# Multi company
+core.multi-company.enabled=true
+
+# Tesorería — morosidad e inhabilitación (job día 11)
+# Tesorería — generación cuotas sociales (diario 00:00)
+tesoreria.cuota-social.enabled=true
+tesoreria.cuota-social.cron=0 0 0 * * *
+
+# Tesorería — generación cuotas actividad (diario 00:30)
+tesoreria.cuota-actividad.enabled=true
+tesoreria.cuota-actividad.cron=0 30 0 * * *
+
+# Tesorería — vencimiento PENDIENTE → VENCIDA (diario 01:00)
+tesoreria.cuota-vencimiento.enabled=true
+tesoreria.cuota-vencimiento.cron=0 0 1 * * *
+
+# Certificados médicos — vencimiento CONFIRMADO → VENCIDO (diario 02:00)
+certificados.certificado-medico-vencimiento.enabled=true
+certificados.certificado-medico-vencimiento.cron=0 0 2 * * *
+
+# CRM — marca facturas vencidas, verifica el estado de la suscripcion de cada club
+# y ajusta su acceso a la plataforma (diario 03:00)
+crm.suscripcion-verificacion.enabled=true
+crm.suscripcion-verificacion.cron=0 0 3 * * *
+
+# CRM — sincroniza el catalogo de planes y productos (diario 02:00)
+crm.catalogo-sync.enabled=true
+crm.catalogo-sync.cron=0 0 2 * * *
+# Ademas del cron, sincroniza al arrancar: plan_crm nace vacia y sin plan sincronizado
+# el alta de club corta con 409
+crm.catalogo-sync.on-startup=true

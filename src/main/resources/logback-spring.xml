@@ -1,0 +1,74 @@
+<configuration>
+    <!-- Ruta y nombre base para logs (tomado desde application.properties) -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
+    <springProperty scope="context" name="LOG_BASENAME" source="logging.file.basename" defaultValue="app"/>
+
+    <!-- Consola: útil para desarrollo -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Archivo DIARIO: desde DEBUG, rota por día, mantiene solo 1 día de historial -->
+    <appender name="DAILY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Comentario: este archivo recibe todo desde DEBUG hacia arriba -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+
+        <!-- Comentario: archivo “activo” del día -->
+        <file>${LOG_PATH}/${LOG_BASENAME}.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Comentario: cada día se archiva como debug.YYYY-MM-DD.log -->
+            <fileNamePattern>${LOG_PATH}/${LOG_BASENAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- Comentario: conservar solo el último día de archivos rotados -->
+            <maxHistory>1</maxHistory>
+
+            <!-- Comentario: limpiar historial en el arranque según maxHistory -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Archivo SEMANAL: desde WARN, rota por día, mantiene 7 días -->
+    <appender name="WEEKLY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Comentario: este archivo solo guarda WARN y ERROR -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+
+        <!-- Comentario: archivo “activo” de advertencias/errores -->
+        <file>${LOG_PATH}/${LOG_BASENAME}.warn.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Comentario: cada día se archiva como warn.YYYY-MM-DD.log -->
+            <fileNamePattern>${LOG_PATH}/${LOG_BASENAME}.warn.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- Comentario: conservar 7 días -->
+            <maxHistory>7</maxHistory>
+
+            <!-- Comentario: limpiar historial en el arranque según maxHistory -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="DAILY_FILE"/>
+        <appender-ref ref="WEEKLY_FILE"/>
+    </root>
+</configuration>

@@ -1,0 +1,60 @@
+--liquibase formatted sql
+
+-- changeset bsports-club:v80-equipamiento
+-- comment: Inventario de equipamiento deportivo por club y su historial de mantenimientos (preventivos,
+-- reparaciones, revisiones). Un mantenimiento con costo puede quedar vinculado al egreso de tesoreria.
+CREATE TABLE equipamientos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  codigo VARCHAR(40) NULL,
+  tipo VARCHAR(80) NULL,
+  disciplina VARCHAR(80) NULL,
+  marca VARCHAR(80) NULL,
+  modelo VARCHAR(80) NULL,
+  cantidad INT NOT NULL DEFAULT 1,
+  estado VARCHAR(20) NOT NULL,
+  ubicacion VARCHAR(120) NULL,
+  fecha_adquisicion DATE NULL,
+  observaciones TEXT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_equipamientos_uuid (uuid),
+  KEY idx_equipamientos_company (company_id, status, estado),
+  KEY idx_equipamientos_codigo (company_id, codigo),
+  CONSTRAINT fk_equipamientos_company FOREIGN KEY (company_id) REFERENCES companies (id)
+);
+
+CREATE TABLE equipamiento_mantenimientos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  equipamiento_id BIGINT NOT NULL,
+  tipo VARCHAR(20) NOT NULL,
+  fecha DATE NOT NULL,
+  responsable VARCHAR(120) NULL,
+  descripcion TEXT NOT NULL,
+  costo DECIMAL(12,2) NULL,
+  proximo_mantenimiento DATE NULL,
+  registrado_por BIGINT NOT NULL,
+  movimiento_id BIGINT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_equipamiento_mantenimientos_uuid (uuid),
+  KEY idx_equipamiento_mantenimientos_equipo (equipamiento_id, status, fecha),
+  CONSTRAINT fk_equipamiento_mantenimientos_equipo FOREIGN KEY (equipamiento_id) REFERENCES equipamientos (id),
+  CONSTRAINT fk_equipamiento_mantenimientos_user FOREIGN KEY (registrado_por) REFERENCES auth_users (id),
+  CONSTRAINT fk_equipamiento_mantenimientos_mov FOREIGN KEY (movimiento_id) REFERENCES movimientos (id)
+);

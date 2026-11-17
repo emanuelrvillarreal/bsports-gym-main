@@ -1,0 +1,3833 @@
+﻿openapi: 3.0.3
+info:
+  title: Multiempresa Alpha API
+  version: 1.0.0
+  description: |
+    Documentacion de los endpoints de la API.
+servers:
+  - url: /api
+    description: Local (context-path /api)
+  - url: /bsports-club/api
+    description: Staging detrÃ¡s de nginx (prefijo del proyecto)
+
+tags:
+  - name: Actuator
+    description: Salud del servicio
+  - name: Autenticacion y usuarios
+    description: JWT, sesiÃ³n, registro pÃºblico, tokens personales y CRUD usuario
+  - name: Empresas
+    description: CRUD empresas (companies)
+  - name: Roles
+    description: CRUD roles por empresa
+  - name: Permisos
+    description: CRUD permisos del sistema
+  - name: Configuracion
+    description: Variables de sistema pÃºblicas/privadas
+  - name: Sysadmin
+    description: Alta de clubes desde panel interno B Sport (solo SYSADMIN)
+  - name: Socios
+    description: Alta y gestiÃ³n de socios titulares y familiares
+  - name: Tesoreria
+    description: Cuotas, cobros y generaciÃ³n diaria
+  - name: Actividades
+    description: Comisiones y listado paginado
+  - name: Profesores
+    description: Profesores del club
+  - name: Recepcionistas
+    description: Usuarios recepcionistas del club (rol ADM_RECEPCION)
+  - name: Categorias
+    description: CategorÃ­as de edad para actividades y socios
+  - name: Amenities
+    description: Amenities y reservas
+  - name: Eventos de actividad
+    description: ABM de eventos puntuales vinculados a actividades
+  - name: Calendario
+    description: Vista combinada de slots recurrentes y eventos de actividad
+  - name: Accesos al club
+    description: Registro de ingreso/egreso al predio, presencia en tiempo real e historial
+
+security:
+  - basicAuth: []
+
+paths:
+  /actuator/health:
+    get:
+      tags: [Actuator]
+      summary: Health check
+      operationId: actuatorHealth
+      security: []
+      description: |
+        **PÃºblico.** No requiere autenticaciÃ³n.
+      responses:
+        '200':
+          description: AplicaciÃ³n en ejecuciÃ³n
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /configuracion/all:
+    get:
+      tags: [Configuracion]
+      summary: Listar configuraciones
+      operationId: configuracionGetAll
+      description: |
+        Si el usuario tiene permiso `configuration.view`, devuelve todas las filas.
+        Si no, solo las variables **pÃºblicas** (`global=true`).
+        **Permisos:** opcional `configuration.view`; sin autenticaciÃ³n se aplican solo pÃºblicas si el backend lo permite.
+      responses:
+        '200':
+          description: Lista de configuraciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigurationDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /configuracion/get/{key}:
+    get:
+      tags: [Configuracion]
+      summary: Obtener configuraciÃ³n por clave
+      operationId: configuracionGetOne
+      description: |
+        Variables globales visibles para cualquiera con la clave. Variables privadas requieren `configuration.view`.
+        **Permisos:** `configuration.view` para claves no globales.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ConfiguraciÃ³n encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigurationDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /configuracion/get/list:
+    post:
+      tags: [Configuracion]
+      summary: Obtener varias configuraciones por lista de claves
+      operationId: configuracionGetList
+      description: |
+        Si no es administrador global (`ADMIN`), no puede pedir variables privadas en la lista.
+        **Permisos:** rol `ADMIN` para incluir claves privadas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+            example: ["clave.publica", "otra"]
+      responses:
+        '200':
+          description: Lista encontrada
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigurationDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /configuracion/save:
+    post:
+      tags: [Configuracion]
+      summary: Crear o editar configuraciones
+      operationId: configuracionSave
+      description: |
+        **Permisos:** `configuration.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConfigurationDTO'
+      responses:
+        '200':
+          description: Lista guardada
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigurationDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /sysadmin/clubs:
+    post:
+      tags: [Sysadmin]
+      summary: Alta de club y administrador inicial
+      operationId: sysadminRegisterClub
+      description: |
+        Registra una organizaciÃ³n Club y su usuario Administrador inicial (doc complementario Â§2.1).
+        Provisiona roles del mÃ³dulo Club en la nueva empresa.
+        **Permisos:** rol `SYSADMIN` (panel interno B Sport). No es registro pÃºblico.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubRegistrationRequestDTO'
+            example:
+              nombreComercial: Club AtlÃ©tico Norte
+              razonSocial: Club AtlÃ©tico Norte S.A.
+              cuit: "30-71234567-8"
+              domicilio:
+                direccion: Av. Libertador 1200
+                codigoPostal: "1425"
+                localidad: CABA
+              domicilioFacturacion:
+                direccion: Av. Corrientes 500
+                codigoPostal: "1043"
+                localidad: CABA
+              domicilioEntregaFacturas:
+                direccion: Av. Santa Fe 2000
+                codigoPostal: "1123"
+                localidad: CABA
+              telefono: "1140001000"
+              telefonoPagoProveedores: "1140002000"
+              responsablePagoProveedoresNombre: Juan
+              responsablePagoProveedoresApellido: PÃ©rez
+              responsablePagoProveedoresCargo: Tesorero
+              responsablePagoProveedoresEmail: tesoreria@catnorte.com
+              diasAtencionPagoProveedores: Lunes a Viernes 9 a 17 hs
+              emailFacturaElectronica: facturas@catnorte.com
+              personasAutorizadasOpenData:
+                - nombre: Ana
+                  apellido: LÃ³pez
+                  email: ana@catnorte.com
+              emailInstitucional: info@catnorte.com
+              colorPrimario: "#003366"
+              colorSecundario: "#FFCC00"
+              cuotaSocialHabilitada: true
+              admin:
+                nombre: MarÃ­a
+                apellido: GonzÃ¡lez
+                email: admin@catnorte.com
+                password: "ClaveSegura123!"
+      responses:
+        '201':
+          description: Club y administrador creados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubRegistrationResponseDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /member/public/titular:
+    post:
+      tags: [Socios]
+      summary: Registro pÃºblico de socio titular
+      operationId: memberPublicRegistroTitular
+      security: []
+      description: |
+        **PÃºblico.** Registra un socio titular en el club indicado por `X-Company-Uuid`.
+        Si el email no existe, crea usuario (requiere `password`) y socio con `status = -2` (pendiente de aprobaciÃ³n).
+        Si el email ya existe, reutiliza el usuario y crea el socio pendiente en ese club (sin `password`).
+        Notifica al club vÃ­a `emailInstitucional`. El socio queda activo (`status = 0`) tras aprobaciÃ³n en backoffice.
+        Si ya tiene solicitud pendiente o es socio activo del club, responde 409.
+      parameters:
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+          description: UUID del club (obligatorio en modo multi-empresa)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberPublicRegistroCommand'
+      responses:
+        '200':
+          description: Socio titular registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /member/portal/familiar:
+    post:
+      tags: [Socios]
+      summary: Alta de familiar por socio titular (portal)
+      operationId: memberPortalAltaFamiliar
+      description: |
+        **Portal.** El socio titular autenticado da de alta un integrante de su grupo familiar.
+        El titular se resuelve por sesiÃ³n (sin UUID en el body).
+        Requiere permiso `portal.family.create` y header `X-Company-Uuid`.
+        Si el email no existe, crea usuario (requiere `password`) con `status = -2`.
+        Crea el member familiar con `status = -2` (pendiente de aprobaciÃ³n) y notifica al club.
+        Si el email ya existe, reutiliza el usuario y crea el member familiar pendiente.
+        Si ya tiene solicitud pendiente o es socio activo del club, responde 409.
+      parameters:
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberPortalFamiliarAltaCommand'
+      responses:
+        '200':
+          description: Familiar registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /member/solicitudes/paginate:
+    post:
+      tags: [Socios]
+      summary: Listado de solicitudes de registro pendientes
+      operationId: memberSolicitudesPaginate
+      description: |
+        **Backoffice.** Lista solicitudes de registro con `Member.status = -2`.
+        Requiere permiso `member.view` y header `X-Company-Uuid`.
+      parameters:
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberSolicitudPaginateRequestDTO'
+      responses:
+        '200':
+          description: PÃ¡gina de solicitudes pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberSolicitudRegistroPageDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /member/uuid/{memberUuid}/aprobar-registro:
+    post:
+      tags: [Socios]
+      summary: Aprobar solicitud de registro
+      operationId: memberAprobarRegistro
+      description: |
+        **Backoffice.** Aprueba una solicitud pendiente (`status -2 â†’ 0`).
+        Activa el usuario si estaba pendiente. Genera cuota social de alta si aplica.
+        Requiere permiso `member.create`.
+      parameters:
+        - name: memberUuid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Socio activado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /member/uuid/{memberUuid}/rechazar-registro:
+    post:
+      tags: [Socios]
+      summary: Rechazar solicitud de registro
+      operationId: memberRechazarRegistro
+      description: |
+        **Backoffice.** Rechaza una solicitud pendiente (`Member.status â†’ -1`).
+        Si el usuario fue creado solo para esta solicitud y no tiene otros members activos, se elimina lÃ³gicamente.
+        Requiere permiso `member.create`.
+      parameters:
+        - name: memberUuid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberRegistroRechazoCommand'
+      responses:
+        '200':
+          description: Solicitud rechazada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /member/import:
+    post:
+      tags: [Socios]
+      summary: ImportaciÃ³n masiva de socios (Excel)
+      operationId: memberBulkImport
+      description: |
+        **Backoffice â€” migraciÃ³n.** Importa socios titulares y familiares desde Excel (`.xls` o `.xlsx`).
+        Requiere permisos `member.create` y `family.create` y header `X-Company-Uuid`.
+
+        **Columnas** (encabezados en espaÃ±ol, case-insensitive): `Nombre`, `Apellido`, `DNI`, `Email`,
+        `ContraseÃ±a`, `TelÃ©fono`, `Fecha de nacimiento`, `NÃºmero de socio`, `Fecha de alta`, `Parentesco`, `Titular DNI`.
+
+        - Fila **titular**: `Titular DNI` y `Parentesco` vacÃ­os.
+        - Fila **familiar**: ambos informados; `Titular DNI` acepta DNI o email del titular.
+        - `Parentesco`: `CONYUGE`, `HIJO`, `HIJA`, `PADRE`, `MADRE`, `OTRO` (case-insensitive).
+        - Fechas solo texto `dd/MM/yyyy`; otro formato â†’ advertencia y campo nulo (`Fecha de nacimiento` obligatoria).
+        - No importa filas cuyo email o DNI coincida con un **usuario activo** (`status = 0`).
+        - Crea usuario nuevo si no hay activo (incluye usuarios eliminados `status = -1`).
+        - ImportaciÃ³n **parcial**: responde 200 con reporte fila a fila (`SUCCESS` / `ERROR`).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo Excel (.xls o .xlsx)
+      responses:
+        '200':
+          description: Resultado de importaciÃ³n (puede incluir errores parciales por fila)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberBulkImportResultDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /user/login:
+    get:
+      tags: [Autenticacion y usuarios]
+      summary: Usuario actual (sesiÃ³n/Basic)
+      operationId: userLoginGet
+      description: |
+        Requiere sesiÃ³n vÃ¡lida (p. ej. Basic). Devuelve el `UserDTO` del usuario autenticado.
+        **Permisos:** usuario autenticado.
+      responses:
+        '200':
+          description: Usuario actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Login JWT
+      operationId: userLoginJwt
+      security: []
+      description: |
+        **PÃºblico** si el protocolo `jwt` estÃ¡ habilitado en el servidor. Devuelve access y refresh token.
+        Si JWT no estÃ¡ habilitado, responde error de negocio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAndPasswordDTO'
+            example:
+              username: sysadmin
+              password: 123
+      responses:
+        '200':
+          description: Tokens JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtTokenDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/refresh-token:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Renovar JWT con refresh token
+      operationId: userRefreshToken
+      security: []
+      description: |
+        **PÃºblico.** Cuerpo con `refresh` obligatorio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JwtTokenDTO'
+      responses:
+        '200':
+          description: Nuevo par de tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtTokenDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/create-token:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Crear token de acceso personal
+      operationId: userCreateToken
+      description: |
+        **Permisos:** usuario autenticado (el servicio delega en `AuthService`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAccessTokenDTO'
+      responses:
+        '200':
+          description: Token creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccessTokenDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/delete-token/{uuid}:
+    delete:
+      tags: [Autenticacion y usuarios]
+      summary: Eliminar token de acceso personal
+      operationId: userDeleteToken
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccessTokenDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/tokens:
+    get:
+      tags: [Autenticacion y usuarios]
+      summary: Listar mis tokens personales
+      operationId: userTokensList
+      responses:
+        '200':
+          description: Lista de tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAccessTokenDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/public/register:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Registro pÃºblico de usuario y empresa
+      operationId: userPublicRegister
+      security: []
+      description: |
+        **PÃºblico.** Opcional header `X-Captcha-Token` si hCaptcha estÃ¡ habilitado.
+      parameters:
+        - name: X-Captcha-Token
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicRegisterRequest'
+      responses:
+        '200':
+          description: Usuario registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/public/register-client:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Registro pÃºblico de cliente en empresa existente
+      operationId: userPublicRegisterClient
+      security: []
+      description: |
+        **PÃºblico.** Registra un usuario cliente en la empresa indicada por `X-Company-Uuid`.
+        Opcional header `X-Captcha-Token` si hCaptcha estÃ¡ habilitado.
+      parameters:
+        - name: X-Company-Uuid
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: X-Captcha-Token
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDTO'
+      responses:
+        '200':
+          description: Usuario registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/public/link/{userUuid}:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Vincular usuario existente a empresa
+      operationId: userPublicLink
+      security: []
+      parameters:
+        - name: userUuid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Company-Uuid
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Usuario vinculado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/public/verify:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Verificar email con cÃ³digo
+      operationId: userPublicVerify
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uuid, code]
+              properties:
+                uuid:
+                  type: string
+                code:
+                  type: string
+      responses:
+        '200':
+          description: VerificaciÃ³n correcta (sin cuerpo)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/public/resend-code:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Reenviar cÃ³digo de verificaciÃ³n
+      operationId: userPublicResendCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDTO'
+      responses:
+        '200':
+          description: CÃ³digo reenviado
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/public/forgot-password:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Solicitar recuperaciÃ³n de contraseÃ±a
+      operationId: userPublicForgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Correo enviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Mail enviado correctamente
+
+  /user/public/change-password:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Cambiar contraseÃ±a con cÃ³digo de recuperaciÃ³n
+      operationId: userPublicChangePassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordDTO'
+      responses:
+        '200':
+          description: ContraseÃ±a actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /user/uuid/{uuid}:
+    get:
+      tags: [Autenticacion y usuarios]
+      summary: Obtener usuario por UUID
+      operationId: userGetByUuid
+      description: |
+        **Permisos:** `user.view`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: Usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/paginate:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Paginar usuarios
+      operationId: userPaginate
+      description: |
+        **Permisos:** `user.view`. Tabla interna `usuarios` (segÃºn servicio).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaginateList'
+      responses:
+        '200':
+          description: PÃ¡gina de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageUserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/save:
+    post:
+      tags: [Autenticacion y usuarios]
+      summary: Crear o editar usuario
+      operationId: userSave
+      description: |
+        **Permisos:** `user.create` si no hay UUID; `user.edit` si hay UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDTO'
+      responses:
+        '200':
+          description: Usuario guardado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/{uuid}:
+    delete:
+      tags: [Autenticacion y usuarios]
+      summary: Eliminar usuario (lÃ³gico)
+      operationId: userDelete
+      description: |
+        **Permisos:** `user.delete`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: Usuario eliminado lÃ³gicamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /companies/context:
+    get:
+      tags: [Empresas]
+      summary: Contexto multi-empresa
+      operationId: companyGetContext
+      description: |
+        **Endpoint pÃºblico:** no requiere autenticaciÃ³n obligatoria.
+        Expone el modo multi-empresa / mono-empresa y la company resuelta para la peticiÃ³n actual.
+        Si hay sesiÃ³n autenticada, puede incluir `currentCompany`.
+        Header opcional: `X-Company-Uuid`.
+      security: []
+      responses:
+        '200':
+          description: ConfiguraciÃ³n de contexto de empresa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyContextDTO'
+              examples:
+                monoEmpresa:
+                  summary: Modo mono-empresa sin sesiÃ³n
+                  value:
+                    multiTenantEnabled: false
+                    defaultCompanyUuid: "2"
+                    companyHeaderRequired: false
+                    requestCompanyUuid: null
+                    resolvedCompanyUuid: "2"
+                    currentCompany: null
+
+  /companies/uuid/{uuid}:
+    get:
+      tags: [Empresas]
+      summary: Obtener empresa por UUID
+      operationId: companyGetByUuid
+      description: |
+        El servicio de empresas **no aplica** `authService.valid` en los hooks de uuid/paginate/save/delete;
+        en la prÃ¡ctica suele usarse con usuario autenticado segÃºn polÃ­ticas del despliegue.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /companies/paginate:
+    post:
+      tags: [Empresas]
+      summary: Paginar empresas
+      operationId: companyPaginate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaginateList'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageCompanyDTO'
+
+  /companies/save:
+    post:
+      tags: [Empresas]
+      summary: Crear o editar empresa
+      operationId: companySave
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyDTO'
+
+  /companies/{uuid}:
+    delete:
+      tags: [Empresas]
+      summary: Eliminar empresa (lÃ³gico)
+      operationId: companyDelete
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyDTO'
+
+  /companies/profile:
+    put:
+      tags: [Empresas]
+      summary: Actualizar perfil del club (ADMIN/SYSADMIN)
+      operationId: companyUpdateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubProfileUpdateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyDTO'
+
+  /treasury/cuota/generacion/diaria:
+    post:
+      tags: [Tesoreria]
+      summary: Disparar generaciÃ³n diaria de cuotas del club (ADMIN)
+      operationId: treasuryGeneracionDiaria
+      parameters:
+        - name: fecha
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Fecha de corte (default hoy)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CuotaGeneracionMensualResultDTO'
+
+  /treasury/cuota/paginate:
+    post:
+      tags: [Tesoreria]
+      summary: Listado paginado de cuotas
+      operationId: treasuryCuotaPaginate
+      description: |
+        **Permisos:** `treasury.view`. Filtros por `estados`, `tipos`, `search`, titular/persona UUID, `orden`.
+        Respuesta sin campo `impaga`; usar `diasMora` y filtrar por `estados` para deuda.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CuotaPaginateRequestDTO'
+      responses:
+        '200':
+          description: PÃ¡gina de cuotas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageCuotaPaginateRowDTO'
+
+  /actividad/paginate:
+    post:
+      tags: [Actividades]
+      summary: Listado paginado de actividades
+      operationId: actividadPaginate
+      description: |
+        **Permisos:** `activity.view`. Filtros `search` (nombre/ubicaciÃ³n), `completa`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActividadPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageActividadDTO'
+
+  /actividad/{actividadUuid}:
+    put:
+      tags: [Actividades]
+      summary: EdiciÃ³n de actividad
+      operationId: actividadEditar
+      description: |
+        **Permisos:** `activity.edit`. PUT completo. Si `categoriaUuids` se omite se conservan las categorÃ­as actuales; si va vacÃ­o se quitan todas.
+      parameters:
+        - name: actividadUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActividadEdicionCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActividadDTO'
+
+  /profesor/paginate:
+    post:
+      tags: [Profesores]
+      summary: Listado paginado de profesores
+      operationId: profesorPaginate
+      description: |
+        **Permisos:** `activity.view`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfesorPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageProfesorDTO'
+
+  /profesor/{profesorUuid}:
+    delete:
+      tags: [Profesores]
+      summary: Baja lÃ³gica de profesor
+      operationId: profesorBajaLogica
+      description: |
+        **Permisos:** `activity.delete`. `status = -1`, desasigna de actividades. Respuesta 204.
+      parameters:
+        - name: profesorUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Profesor dado de baja (idempotente)
+
+  /recepcionista:
+    post:
+      tags: [Recepcionistas]
+      summary: Alta de recepcionista
+      operationId: recepcionistaAlta
+      description: |
+        **Permisos:** `club.internal_user.manage` (solo ADMIN). Crea usuario con rol `ADM_RECEPCION` y fila en `recepcionistas`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecepcionistaAltaCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecepcionistaDTO'
+
+  /recepcionista/paginate:
+    post:
+      tags: [Recepcionistas]
+      summary: Listado paginado de recepcionistas
+      operationId: recepcionistaPaginate
+      description: |
+        **Permisos:** `club.internal_user.manage` (solo ADMIN).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecepcionistaPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageRecepcionistaDTO'
+
+  /recepcionista/{recepcionistaUuid}:
+    delete:
+      tags: [Recepcionistas]
+      summary: Baja lÃ³gica de recepcionista
+      operationId: recepcionistaBajaLogica
+      description: |
+        **Permisos:** `club.internal_user.manage` (solo ADMIN). `status = -1`, `estado = INACTIVO`. Respuesta 204.
+      parameters:
+        - name: recepcionistaUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Recepcionista dado de baja (idempotente)
+
+  /categoria:
+    get:
+      tags: [Categorias]
+      summary: Listado de categorÃ­as activas
+      operationId: categoriaListar
+      description: |
+        **Permisos:** `categoria.view`. Listado simple ordenado por nombre (combos).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoriaDTO'
+    post:
+      tags: [Categorias]
+      summary: Alta de categorÃ­a
+      operationId: categoriaAlta
+      description: |
+        **Permisos:** `categoria.create`. Nombre Ãºnico por club. Rango `edadMinima`â€“`edadMaxima` opcional (cada extremo puede omitirse).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoriaAltaCommand'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriaDTO'
+
+  /categoria/paginate:
+    post:
+      tags: [Categorias]
+      summary: Listado paginado de categorÃ­as
+      operationId: categoriaPaginate
+      description: |
+        **Permisos:** `categoria.view`. Filtro `search` en nombre y descripciÃ³n.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoriaPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageCategoriaDTO'
+
+  /categoria/{categoriaUuid}:
+    put:
+      tags: [Categorias]
+      summary: EdiciÃ³n de categorÃ­a
+      operationId: categoriaEditar
+      description: |
+        **Permisos:** `categoria.edit`.
+      parameters:
+        - name: categoriaUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoriaEdicionCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriaDTO'
+    delete:
+      tags: [Categorias]
+      summary: Baja lÃ³gica de categorÃ­a
+      operationId: categoriaBajaLogica
+      description: |
+        **Permisos:** `categoria.delete`. `status = -1`. Tras el commit, un listener asÃ­ncrono desasigna la categorÃ­a en socios y actividades activos del club.
+      parameters:
+        - name: categoriaUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: CategorÃ­a dada de baja (idempotente)
+
+  /amenities/reservas/paginate:
+    post:
+      tags: [Amenities]
+      summary: Listado paginado de reservas
+      operationId: reservaPaginate
+      description: |
+        **Permisos:** `amenity.view`. Filtros por estado, amenity, socio, rango de slot, bÃºsqueda por nombre.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageReservaAmenityDTO'
+
+  /amenities/reservas/{uuid}/confirmar:
+    post:
+      tags: [Amenities]
+      summary: Confirmar reserva gratuita
+      operationId: reservaAmenityConfirmar
+      description: |
+        **Permisos:** `amenity.reservation.collect`. Solo reservas con `montoTotal = 0`.
+        Confirma la reserva sin movimiento de tesorerÃ­a (equivalente a seÃ±a en amenities de pago).
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaAmenityDTO'
+
+  /amenities/reservas/{uuid}/cobro-sena:
+    post:
+      tags: [Amenities]
+      summary: Cobrar seÃ±a de reserva
+      operationId: reservaAmenityCobroSena
+      description: |
+        **Permisos:** `treasury.collect` y `amenity.reservation.collect`.
+        Canal manual o Mercado Pago. Reservas gratuitas deben usar `/confirmar`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaAmenityCobroCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaAmenityCobroResultDTO'
+
+  /amenities/reservas/{uuid}/cobro-saldo:
+    post:
+      tags: [Amenities]
+      summary: Cobrar saldo de reserva
+      operationId: reservaAmenityCobroSaldo
+      description: |
+        **Permisos:** `treasury.collect` y `amenity.reservation.collect`.
+        Solo reservas confirmadas con saldo pendiente. Canal manual o Mercado Pago.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaAmenityCobroCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaAmenityCobroResultDTO'
+
+  /amenities/reservas/{uuid}/cobro-total:
+    post:
+      tags: [Amenities]
+      summary: Cobrar monto total de reserva
+      operationId: reservaAmenityCobroTotal
+      description: |
+        **Permisos:** `treasury.collect` y `amenity.reservation.collect`.
+        Solo reservas en `PENDIENTE_SENA` con `montoTotal > 0`. Paga el 100% en un paso (alternativa a seÃ±a + saldo).
+        Canal manual o Mercado Pago. Reservas gratuitas deben usar `/confirmar`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaAmenityCobroCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaAmenityCobroResultDTO'
+
+  /amenities/reservas/{uuid}:
+    delete:
+      tags: [Amenities]
+      summary: Cancelar reserva de amenity
+      operationId: reservaAmenityCancelar
+      description: |
+        **Permisos:** `amenity.reservation.cancel`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservaAmenityDTO'
+
+  /role/uuid/{uuid}:
+    get:
+      tags: [Roles]
+      summary: Obtener rol por UUID
+      operationId: roleGetByUuid
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDTO'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /role/paginate:
+    post:
+      tags: [Roles]
+      summary: Paginar roles
+      operationId: rolePaginate
+      description: |
+        **Permisos:** `role.view`. Filtra por empresa del usuario salvo admin global.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaginateList'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPageRoleDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /role/save:
+    post:
+      tags: [Roles]
+      summary: Crear o editar rol
+      operationId: roleSave
+      description: |
+        **Permisos:** `role.create` o `role.edit`. Reglas adicionales de empresa y escalaciÃ³n de permisos en el servicio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDTO'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /role/{uuid}:
+    delete:
+      tags: [Roles]
+      summary: Eliminar rol
+      operationId: roleDelete
+      description: |
+        **Permisos:** `role.delete` y reglas de empresa/sistema.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDTO'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /permission/uuid/{uuid}:
+    get:
+      tags: [Permisos]
+      summary: Obtener permiso por UUID
+      operationId: permissionGetByUuid
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionDTO'
+
+  /permission/paginate:
+    post:
+      tags: [Permisos]
+      summary: Paginar permisos
+      operationId: permissionPaginate
+      description: |
+        **Permisos:** `permission.view`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaginateList'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpringPagePermissionDTO'
+
+  /permission/save:
+    post:
+      tags: [Permisos]
+      summary: Crear o editar permiso
+      operationId: permissionSave
+      description: |
+        **Permisos:** `permission.create` (sin UUID) o `permission.edit` (con UUID).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionDTO'
+
+  /permission/{uuid}:
+    delete:
+      tags: [Permisos]
+      summary: Eliminar permiso
+      operationId: permissionDelete
+      description: |
+        **Permisos:** `permission.delete`.
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionDTO'
+
+  /evento-actividad:
+    post:
+      tags: [Eventos de actividad]
+      summary: Alta de evento (backoffice)
+      operationId: eventoActividadCrear
+      description: |
+        **Permisos:** `activity.create`. Staff (admin/recepcionista). El evento queda CONFIRMADO.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadAltaCommand'
+      responses:
+        '201':
+          description: Evento creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+
+  /evento-actividad/{eventoUuid}:
+    get:
+      tags: [Eventos de actividad]
+      summary: Detalle de evento (backoffice)
+      operationId: eventoActividadDetalle
+      description: |
+        **Permisos:** `activity.view` o visibilidad equivalente al calendario filtrado.
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+    put:
+      tags: [Eventos de actividad]
+      summary: EdiciÃ³n de evento (backoffice)
+      operationId: eventoActividadEditar
+      description: |
+        **Permisos:** `activity.edit`.
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadEdicionCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+    delete:
+      tags: [Eventos de actividad]
+      summary: Baja lÃ³gica de evento (backoffice)
+      operationId: eventoActividadBajaLogica
+      description: |
+        **Permisos:** `activity.delete`. Marca `status=-1`; deja de aparecer en calendario y detalle.
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Evento eliminado lÃ³gicamente
+
+  /evento-actividad/{eventoUuid}/estado:
+    post:
+      tags: [Eventos de actividad]
+      summary: Cambiar estado de evento (backoffice)
+      operationId: eventoActividadCambiarEstado
+      description: |
+        **Permisos:** `activity.delete`. Cambia el `estado` del evento (CONFIRMADO/CANCELADO); sigue visible en calendario. Rechaza (409) si el evento ya se encuentra en el estado solicitado.
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadEstadoCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+
+  /portal/profesor/evento-actividad:
+    post:
+      tags: [Eventos de actividad]
+      summary: Alta de evento (portal profesor)
+      operationId: portalEventoActividadCrear
+      description: |
+        **Permisos:** `activity.create`. Solo actividades donde el profesor estÃ¡ asignado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadAltaCommand'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+
+  /portal/profesor/evento-actividad/{eventoUuid}:
+    get:
+      tags: [Eventos de actividad]
+      summary: Detalle de evento (portal profesor)
+      operationId: portalEventoActividadDetalle
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+    put:
+      tags: [Eventos de actividad]
+      summary: EdiciÃ³n de evento (portal profesor)
+      operationId: portalEventoActividadEditar
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadEdicionCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+    delete:
+      tags: [Eventos de actividad]
+      summary: Baja lÃ³gica de evento (portal profesor)
+      operationId: portalEventoActividadBajaLogica
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Evento eliminado lÃ³gicamente
+
+  /portal/profesor/evento-actividad/{eventoUuid}/estado:
+    post:
+      tags: [Eventos de actividad]
+      summary: Cambiar estado de evento (portal profesor)
+      operationId: portalEventoActividadCambiarEstado
+      description: |
+        Cambia el `estado` del evento (CONFIRMADO/CANCELADO). Rechaza (409) si el evento ya se encuentra en el estado solicitado.
+      parameters:
+        - name: eventoUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventoActividadEstadoCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoActividadDetalleDTO'
+
+  /asistencia-actividad/paginate:
+    post:
+      tags: [Asistencia actividades]
+      summary: Consulta paginada de asistencias (backoffice)
+      operationId: asistenciaActividadPaginate
+      description: |
+        **Permisos:** `activity.attendance.view`. Solo lectura para admin/recepcionista.
+        `actividadUuid` obligatorio; `fechaDesde`/`fechaHasta` y `memberUuid` opcionales y combinables.
+        Orden: fecha DESC (mÃ¡s reciente primero). `size` por defecto 20.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsistenciaPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AsistenciaActividadConsultaDTO'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+
+  /portal/profesor/asistencia/paginate:
+    post:
+      tags: [Asistencia actividades]
+      summary: Consulta paginada de asistencias (portal profesor)
+      operationId: portalAsistenciaPaginate
+      description: |
+        **Permisos:** `activity.attendance.manage`. Profesor activo asignado a la actividad indicada.
+        Mismos filtros y paginaciÃ³n que backoffice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsistenciaPaginateRequestDTO'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AsistenciaActividadConsultaDTO'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+
+  /portal/profesor/asistencia/slot/{slotUuid}:
+    get:
+      tags: [Asistencia actividades]
+      summary: Planilla de asistencia por slot (portal profesor)
+      operationId: portalAsistenciaPlanilla
+      description: |
+        **Permisos:** `activity.attendance.manage`. Profesor activo asignado a la actividad del slot.
+      parameters:
+        - name: slotUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsistenciaPlanillaDTO'
+    put:
+      tags: [Asistencia actividades]
+      summary: Guardado en lote de asistencia (portal profesor)
+      operationId: portalAsistenciaGuardarLote
+      description: |
+        **Permisos:** `activity.attendance.manage`. Lote parcial idempotente; rechazo atÃ³mico si payload invÃ¡lido.
+      parameters:
+        - name: slotUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AsistenciaLoteCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsistenciaPlanillaDTO'
+
+  /acceso-club:
+    post:
+      tags: [Accesos al club]
+      summary: Registrar ingreso o egreso
+      operationId: accesoClubRegistrar
+      description: |
+        Toggle automÃ¡tico segÃºn presencia actual del usuario en el club.
+
+        - **Permiso:** `club.access.register` (ADMIN o ADM_RECEPCION)
+        - Si no estÃ¡ presente â†’ `INGRESO`; si estÃ¡ presente â†’ `EGRESO`
+        - Socio `ACTIVO`: permitido. `MOROSO`: permitido con `advertencia` en la respuesta.
+        - Socio `INHABILITADO`, `SUSPENDIDO` o `INACTIVO`: **403** (no registra acceso ni presencia)
+        - Usuario sin `Member` en el club (staff/profesor): permitido; `memberEstado` null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccesoClubRegistroCommand'
+      responses:
+        '201':
+          description: Acceso registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccesoClubRegistroDTO'
+        '400':
+          description: Usuario no pertenece al club o body invÃ¡lido
+        '403':
+          description: Socio en estado que no permite acceso
+        '404':
+          description: Usuario no encontrado
+    get:
+      tags: [Accesos al club]
+      summary: Historial de accesos por rango de fechas
+      operationId: accesoClubListarPorRango
+      description: |
+        **Permiso:** `club.access.view`. Rango inclusivo por dÃ­a (`desde` 00:00 â€” `hasta` 23:59:59).
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: hasta
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccesoClubItemDTO'
+        '400':
+          description: Fechas invÃ¡lidas o rango inconsistente
+
+  /acceso-club/presentes:
+    get:
+      tags: [Accesos al club]
+      summary: Usuarios presentes en el club
+      operationId: accesoClubListarPresentes
+      description: |
+        **Permiso:** `club.access.view`. Lista en tiempo real quiÃ©n estÃ¡ adentro (`club_presencia.presente = true`).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClubPresenciaItemDTO'
+
+  /calendario:
+    post:
+      tags: [Calendario]
+      summary: Calendario staff (slots + eventos)
+      operationId: calendarioStaffListar
+      description: |
+        **Permisos:** `activity.view` y `amenity.view`. Combina slots recurrentes, amenities y eventos de actividad.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarioConsultaCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarioSlotDTO'
+
+  /portal/calendario:
+    post:
+      tags: [Calendario]
+      summary: Calendario portal socio
+      operationId: portalCalendarioSocio
+      description: |
+        **Permisos:** `portal.activities.view`. Eventos y slots de actividades donde el socio estÃ¡ inscripto.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarioConsultaCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarioSlotDTO'
+
+  /portal/profesor/calendario:
+    post:
+      tags: [Calendario]
+      summary: Calendario portal profesor
+      operationId: portalCalendarioProfesor
+      description: |
+        **Permisos:** `activity.view`. Eventos y slots de actividades asignadas al profesor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarioConsultaCommand'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarioSlotDTO'
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Usuario y contraseÃ±a (Swagger UI). En producciÃ³n puede usarse JWT Bearer segÃºn despliegue.
+
+  parameters:
+    UuidPath:
+      name: uuid
+      in: path
+      required: true
+      schema:
+        type: string
+      description: UUID del registro
+
+  responses:
+    BadRequest:
+      description: Error de validaciÃ³n o regla de negocio (CustomException)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CustomExceptionBody'
+          example:
+            status: BAD_REQUEST
+            userMessage: Datos invÃ¡lidos
+            message: Datos invÃ¡lidos
+            developerMessage: Detalle tÃ©cnico
+            errores: []
+    Unauthorized:
+      description: No autenticado o credenciales invÃ¡lidas
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CustomExceptionBody'
+    Forbidden:
+      description: Autenticado sin permisos suficientes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CustomExceptionBody'
+    Conflict:
+      description: Conflicto de regla de negocio (p. ej. socio ya existente en el club)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CustomExceptionBody'
+          example:
+            status: CONFLICT
+            userMessage: Usuario ya registrado como socio
+            message: Usuario ya registrado como socio
+            developerMessage: MemberTitularService | userId: 1
+            errores: []
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CustomExceptionBody'
+        examples:
+          custom:
+            value:
+              status: NOT_FOUND
+              userMessage: No existe el convenio
+              message: No existe el convenio
+          rfc7807:
+            summary: Respuesta tipo Problem Details (algunos 404 de Spring)
+            value:
+              type: about:blank
+              title: Not Found
+              status: 404
+
+  schemas:
+    CustomExceptionBody:
+      type: object
+      description: Cuerpo tÃ­pico de `CustomException` u error JSON del Core
+      properties:
+        status:
+          type: string
+          description: CÃ³digo simbÃ³lico (p. ej. BAD_REQUEST)
+        userMessage:
+          type: string
+        message:
+          type: string
+        developerMessage:
+          type: string
+          nullable: true
+        errores:
+          type: array
+          items:
+            type: object
+        localTime:
+          type: string
+        cause:
+          nullable: true
+        stackTrace:
+          type: array
+          items: {}
+
+    AbstractEntityDTO:
+      type: object
+      properties:
+        uuid:
+          type: string
+          nullable: true
+        status:
+          type: integer
+        dateCreated:
+          type: string
+          format: date-time
+          nullable: true
+
+    BaseCompanyDTO:
+      allOf:
+        - $ref: '#/components/schemas/AbstractEntityDTO'
+        - type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+              nullable: true
+            path:
+              type: string
+              nullable: true
+            code:
+              type: string
+              nullable: true
+
+    CompanyDireccionDTO:
+      type: object
+      required: [direccion, codigoPostal, localidad]
+      properties:
+        direccion:
+          type: string
+          description: Calle y nÃºmero
+        codigoPostal:
+          type: string
+        localidad:
+          type: string
+
+    CompanyPersonaAutorizadaOpenDataDTO:
+      type: object
+      required: [nombre, apellido, email]
+      properties:
+        nombre:
+          type: string
+        apellido:
+          type: string
+        email:
+          type: string
+          format: email
+
+    ClubAdminRequestDTO:
+      type: object
+      required: [nombre, apellido, email, password]
+      properties:
+        nombre:
+          type: string
+          description: Nombre del administrador inicial
+        apellido:
+          type: string
+          description: Apellido del administrador inicial
+        email:
+          type: string
+          format: email
+          description: Email de acceso del administrador (Ãºnico en el sistema)
+        password:
+          type: string
+          writeOnly: true
+          description: ContraseÃ±a inicial definida por el operador sysadmin
+
+    ClubRegistrationRequestDTO:
+      type: object
+      required:
+        - nombreComercial
+        - razonSocial
+        - cuit
+        - domicilio
+        - domicilioFacturacion
+        - domicilioEntregaFacturas
+        - telefono
+        - telefonoPagoProveedores
+        - responsablePagoProveedoresNombre
+        - responsablePagoProveedoresApellido
+        - responsablePagoProveedoresCargo
+        - responsablePagoProveedoresEmail
+        - diasAtencionPagoProveedores
+        - emailFacturaElectronica
+        - personasAutorizadasOpenData
+        - emailInstitucional
+        - colorPrimario
+        - colorSecundario
+        - cuotaSocialHabilitada
+        - admin
+      properties:
+        nombreComercial:
+          type: string
+        razonSocial:
+          type: string
+        cuit:
+          type: string
+        domicilio:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        domicilioFacturacion:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        domicilioEntregaFacturas:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        telefono:
+          type: string
+        telefonoPagoProveedores:
+          type: string
+        responsablePagoProveedoresNombre:
+          type: string
+        responsablePagoProveedoresApellido:
+          type: string
+        responsablePagoProveedoresCargo:
+          type: string
+        responsablePagoProveedoresEmail:
+          type: string
+          format: email
+        diasAtencionPagoProveedores:
+          type: string
+        emailFacturaElectronica:
+          type: string
+          format: email
+        personasAutorizadasOpenData:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompanyPersonaAutorizadaOpenDataDTO'
+        emailInstitucional:
+          type: string
+          format: email
+        colorPrimario:
+          type: string
+        colorSecundario:
+          type: string
+        cuotaSocialHabilitada:
+          type: boolean
+        periodicidadCuotaSocial:
+          type: string
+          nullable: true
+          enum: [SEMANAL, MENSUAL, BIMESTRAL, TRIMESTRAL, CUATRIMESTRAL, SEMESTRAL, ANUAL]
+        diasVencimientoMoroso:
+          type: integer
+          nullable: true
+        diasInhabilitacion:
+          type: integer
+          nullable: true
+        admin:
+          $ref: '#/components/schemas/ClubAdminRequestDTO'
+
+    ClubRegistrationResponseDTO:
+      type: object
+      properties:
+        company:
+          $ref: '#/components/schemas/CompanyDTO'
+        admin:
+          $ref: '#/components/schemas/UserDTO'
+
+    CompanyDTO:
+      allOf:
+        - $ref: '#/components/schemas/BaseCompanyDTO'
+        - type: object
+          properties:
+            cuit:
+              type: string
+              nullable: true
+              description: IdentificaciÃ³n fiscal (CUIT validado)
+            nombreComercial:
+              type: string
+              description: Nombre comercial o institucional del club
+            razonSocial:
+              type: string
+              description: DenominaciÃ³n legal
+            domicilio:
+              $ref: '#/components/schemas/CompanyDireccionDTO'
+            domicilioFacturacion:
+              $ref: '#/components/schemas/CompanyDireccionDTO'
+            domicilioEntregaFacturas:
+              $ref: '#/components/schemas/CompanyDireccionDTO'
+            telefono:
+              type: string
+              nullable: true
+              description: TelÃ©fono institucional
+            telefonoPagoProveedores:
+              type: string
+              nullable: true
+            responsablePagoProveedoresNombre:
+              type: string
+              nullable: true
+            responsablePagoProveedoresApellido:
+              type: string
+              nullable: true
+            responsablePagoProveedoresCargo:
+              type: string
+              nullable: true
+            responsablePagoProveedoresEmail:
+              type: string
+              format: email
+              nullable: true
+            diasAtencionPagoProveedores:
+              type: string
+              nullable: true
+            emailFacturaElectronica:
+              type: string
+              format: email
+              nullable: true
+            personasAutorizadasOpenData:
+              type: array
+              items:
+                $ref: '#/components/schemas/CompanyPersonaAutorizadaOpenDataDTO'
+            emailInstitucional:
+              type: string
+              nullable: true
+              description: Correo del club (no es el email del administrador)
+            logoUrl:
+              type: string
+              nullable: true
+              description: URL del logo institucional (branding y carnet)
+            colorPrimario:
+              type: string
+              nullable: true
+              description: Color institucional primario (hex u otro formato acordado)
+            colorSecundario:
+              type: string
+              nullable: true
+              description: Color institucional secundario
+            cuotaSocialHabilitada:
+              type: boolean
+              nullable: true
+              description: Si el club cobra cuota social fija mensual
+            periodicidadCuotaSocial:
+              type: string
+              nullable: true
+              enum: [SEMANAL, MENSUAL, BIMESTRAL, TRIMESTRAL, CUATRIMESTRAL, SEMESTRAL, ANUAL]
+              description: Cada cuanto se genera la cuota social (default MENSUAL)
+            diasVencimientoMoroso:
+              type: integer
+              nullable: true
+              description: DÃ­as desde generaciÃ³n para vencimiento y morosidad grupal (default 31)
+            diasInhabilitacion:
+              type: integer
+              nullable: true
+              description: DÃ­as desde la cuota social impaga mÃ¡s antigua para inhabilitaciÃ³n grupal (default 91)
+            adminCreado:
+              type: boolean
+              nullable: true
+              description: Alta creada desde panel sysadmin (true para clubes)
+
+    CompanyContextDTO:
+      type: object
+      properties:
+        multiTenantEnabled:
+          type: boolean
+          description: true = multi-empresa (SaaS), false = mono-empresa (on-premise)
+        defaultCompanyUuid:
+          type: string
+          description: UUID de la empresa por defecto cuando multiTenantEnabled es false
+        companyHeaderRequired:
+          type: boolean
+          description: true si el frontend debe enviar X-Company-Uuid en cada request autenticado
+        requestCompanyUuid:
+          type: string
+          nullable: true
+          description: Valor crudo del header X-Company-Uuid
+        resolvedCompanyUuid:
+          type: string
+          description: UUID resuelto tras aplicar resolveCompanyUuid
+        currentCompany:
+          allOf:
+            - $ref: '#/components/schemas/CompanyDTO'
+          nullable: true
+          description: Empresa activa de la sesiÃ³n; null si no hay usuario autenticado o falta contexto
+
+    BaseUserDTO:
+      allOf:
+        - $ref: '#/components/schemas/AbstractEntityDTO'
+        - type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+              writeOnly: true
+              nullable: true
+            email:
+              type: string
+            phone:
+              type: string
+              nullable: true
+            userCompanyRoles:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserCompanyRoleDTO'
+
+    UserDTO:
+      allOf:
+        - $ref: '#/components/schemas/BaseUserDTO'
+        - type: object
+          properties:
+            nombre:
+              type: string
+              description: Nombre de la persona
+            apellido:
+              type: string
+              description: Apellido de la persona
+            dni:
+              type: string
+              description: Documento nacional de identidad (7-11 dÃ­gitos)
+            telefono:
+              type: string
+              nullable: true
+              description: TelÃ©fono de contacto (persistido en phone). Alias de lectura/escritura phone.
+            fechaNacimiento:
+              type: string
+              format: date
+              nullable: true
+              description: Fecha de nacimiento (ISO 8601 date)
+            imageUrl:
+              type: string
+              nullable: true
+              description: URL de la foto de perfil (carnet digital)
+
+    UserCompanyRoleDTO:
+      type: object
+      description: RelaciÃ³n usuario-empresa-roles (estructura simplificada)
+      additionalProperties: true
+
+    RoleDTO:
+      allOf:
+        - $ref: '#/components/schemas/AbstractEntityDTO'
+        - type: object
+          properties:
+            name:
+              type: string
+            isDefault:
+              type: integer
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/PermissionDTO'
+
+    PermissionDTO:
+      allOf:
+        - $ref: '#/components/schemas/AbstractEntityDTO'
+        - type: object
+          properties:
+            name:
+              type: string
+
+    ConfigurationDTO:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+          nullable: true
+        global:
+          type: boolean
+
+    PaginateFiltro:
+      type: object
+      properties:
+        tabla:
+          type: string
+        columna:
+          type: string
+        operacion:
+          type: string
+        valor:
+          type: string
+
+    PaginateParametro:
+      type: object
+      properties:
+        nombre:
+          type: string
+        valor:
+          type: string
+
+    PaginateOrden:
+      type: object
+      properties:
+        tabla:
+          type: string
+          default: t
+        columna:
+          type: string
+        direccion:
+          type: string
+          description: asc o desc
+
+    PaginateRelacion:
+      type: object
+      properties:
+        tipo:
+          type: string
+          description: inner o left
+        hastaTabla:
+          type: string
+        hastaColumna:
+          type: string
+        desdeTabla:
+          type: string
+        desdeColumna:
+          type: string
+
+    PaginateList:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 0
+        size:
+          type: integer
+          default: 10
+        parametros:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaginateParametro'
+        filtros:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/PaginateFiltro'
+        relaciones:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaginateRelacion'
+        ordenes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaginateOrden'
+
+    SpringPage:
+      type: object
+      description: Subconjunto de campos de `org.springframework.data.domain.Page`
+      properties:
+        content:
+          type: array
+          items:
+            type: object
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+
+    SpringPageUserDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserDTO'
+
+    SpringPageCompanyDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/CompanyDTO'
+
+    SpringPageRoleDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleDTO'
+
+    SpringPagePermissionDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/PermissionDTO'
+
+    JwtTokenDTO:
+      type: object
+      properties:
+        token:
+          type: string
+        refresh:
+          type: string
+
+    UserAndPasswordDTO:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    PublicRegisterRequest:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserDTO'
+        company:
+          $ref: '#/components/schemas/CompanyDTO'
+
+    ChangePasswordDTO:
+      type: object
+      properties:
+        code:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+          format: password
+
+    UserAccessTokenDTO:
+      allOf:
+        - $ref: '#/components/schemas/AbstractEntityDTO'
+        - type: object
+          properties:
+            userUuid:
+              type: string
+              nullable: true
+            name:
+              type: string
+            code:
+              type: string
+              nullable: true
+            active:
+              type: integer
+
+    ApiResponseDTO:
+      type: object
+      properties:
+        status:
+          type: integer
+        message:
+          type: string
+        data:
+          nullable: true
+
+    MemberPublicRegistroCommand:
+      type: object
+      required: [nombre, apellido, email]
+      properties:
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+          description: Entre 7 y 11 dÃ­gitos numÃ©ricos
+        fechaNacimiento:
+          type: string
+          format: date
+        telefono:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          description: Obligatorio si el email no existe en el sistema
+
+    MemberSolicitudPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        search:
+          type: string
+          description: BÃºsqueda por nombre, apellido, DNI o email
+
+    MemberSolicitudRegistroDTO:
+      type: object
+      properties:
+        memberUuid:
+          type: string
+        tipoRegistro:
+          type: string
+          enum: [SOCIO_TITULAR, FAMILIAR]
+        titularMemberUuid:
+          type: string
+          nullable: true
+        titularNombre:
+          type: string
+          nullable: true
+        parentesco:
+          type: string
+          nullable: true
+        numeroSocio:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+          nullable: true
+        fechaNacimiento:
+          type: string
+          format: date
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        email:
+          type: string
+        fechaSolicitud:
+          type: string
+          format: date-time
+
+    MemberSolicitudRegistroPageDTO:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberSolicitudRegistroDTO'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+
+    MemberRegistroRechazoCommand:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 512
+
+    MemberBulkImportResultDTO:
+      type: object
+      properties:
+        totalRows:
+          type: integer
+        successCount:
+          type: integer
+        errorCount:
+          type: integer
+        warningCount:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberBulkImportRowResultDTO'
+
+    MemberBulkImportRowResultDTO:
+      type: object
+      properties:
+        rowNumber:
+          type: integer
+        status:
+          type: string
+          enum: [SUCCESS, ERROR]
+        tipo:
+          type: string
+          enum: [TITULAR, FAMILIAR]
+          nullable: true
+        memberUuid:
+          type: string
+          nullable: true
+        numeroSocio:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+
+    MemberPortalFamiliarAltaCommand:
+      type: object
+      required: [nombre, apellido, email, parentesco]
+      properties:
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+          description: Entre 7 y 11 dÃ­gitos numÃ©ricos
+        fechaNacimiento:
+          type: string
+          format: date
+        telefono:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          description: Obligatorio si el email no existe en el sistema
+        parentesco:
+          type: string
+          enum: [CONYUGE, HIJO, HIJA, PADRE, MADRE, OTRO]
+
+    MemberDTO:
+      type: object
+      properties:
+        memberUuid:
+          type: string
+        titular:
+          type: boolean
+        titularMemberUuid:
+          type: string
+          nullable: true
+        parentesco:
+          type: string
+          nullable: true
+        numeroSocio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          enum: [ACTIVO, MOROSO, INHABILITADO, SUSPENDIDO, INACTIVO]
+        fechaAlta:
+          type: string
+          format: date
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+          nullable: true
+        fechaNacimiento:
+          type: string
+          format: date
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        email:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+
+
+    ClubProfileUpdateRequestDTO:
+      type: object
+      required:
+        - nombreComercial
+        - razonSocial
+        - cuit
+        - domicilio
+        - domicilioFacturacion
+        - domicilioEntregaFacturas
+        - telefono
+        - telefonoPagoProveedores
+        - responsablePagoProveedoresNombre
+        - responsablePagoProveedoresApellido
+        - responsablePagoProveedoresCargo
+        - responsablePagoProveedoresEmail
+        - diasAtencionPagoProveedores
+        - emailFacturaElectronica
+        - personasAutorizadasOpenData
+        - emailInstitucional
+        - colorPrimario
+        - colorSecundario
+        - cuotaSocialHabilitada
+      properties:
+        nombreComercial:
+          type: string
+        razonSocial:
+          type: string
+        cuit:
+          type: string
+        domicilio:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        domicilioFacturacion:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        domicilioEntregaFacturas:
+          $ref: '#/components/schemas/CompanyDireccionDTO'
+        telefono:
+          type: string
+        telefonoPagoProveedores:
+          type: string
+        responsablePagoProveedoresNombre:
+          type: string
+        responsablePagoProveedoresApellido:
+          type: string
+        responsablePagoProveedoresCargo:
+          type: string
+        responsablePagoProveedoresEmail:
+          type: string
+          format: email
+        diasAtencionPagoProveedores:
+          type: string
+        emailFacturaElectronica:
+          type: string
+          format: email
+        personasAutorizadasOpenData:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompanyPersonaAutorizadaOpenDataDTO'
+        emailInstitucional:
+          type: string
+          format: email
+        colorPrimario:
+          type: string
+        colorSecundario:
+          type: string
+        cuotaSocialHabilitada:
+          type: boolean
+        periodicidadCuotaSocial:
+          type: string
+          nullable: true
+          enum: [SEMANAL, MENSUAL, BIMESTRAL, TRIMESTRAL, CUATRIMESTRAL, SEMESTRAL, ANUAL]
+        diasVencimientoMoroso:
+          type: integer
+          nullable: true
+        diasInhabilitacion:
+          type: integer
+          nullable: true
+
+    CuotaGeneracionMensualResultDTO:
+      type: object
+      properties:
+        social:
+          $ref: '#/components/schemas/CuotaSocialGeneracionResultDTO'
+        actividad:
+          $ref: '#/components/schemas/CuotaActividadGeneracionResultDTO'
+
+    CuotaSocialGeneracionResultDTO:
+      type: object
+      properties:
+        fechaCorte:
+          type: string
+          format: date
+        companiesProcessed:
+          type: integer
+        cuotasGeneradas:
+          type: integer
+        cuotasOmitidas:
+          type: integer
+
+    CuotaActividadGeneracionResultDTO:
+      type: object
+      properties:
+        fechaCorte:
+          type: string
+          format: date
+        companiesProcessed:
+          type: integer
+        cuotasGeneradas:
+          type: integer
+        cuotasOmitidas:
+          type: integer
+
+    EventoActividadAltaCommand:
+      type: object
+      required: [actividadUuid, titulo, descripcion, ubicacion, inicio, fin]
+      properties:
+        actividadUuid:
+          type: string
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        ubicacion:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+          description: Formato dd/MM/yyyy HH:mm:ss
+        fin:
+          type: string
+          format: date-time
+          description: Formato dd/MM/yyyy HH:mm:ss
+
+    EventoActividadEdicionCommand:
+      type: object
+      required: [titulo, descripcion, ubicacion, inicio, fin]
+      properties:
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        ubicacion:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+
+    EventoActividadEstadoCommand:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [CONFIRMADO, CANCELADO]
+
+    EventoActividadDetalleDTO:
+      type: object
+      properties:
+        uuid:
+          type: string
+        actividadUuid:
+          type: string
+        actividadNombre:
+          type: string
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        ubicacion:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+        estado:
+          type: string
+          enum: [CONFIRMADO, CANCELADO]
+
+    AsistenciaPlanillaDTO:
+      type: object
+      properties:
+        slotUuid:
+          type: string
+        actividadUuid:
+          type: string
+        actividadNombre:
+          type: string
+        fecha:
+          type: string
+          format: date
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+        alumnos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AsistenciaPlanillaRowDTO'
+
+    AsistenciaPlanillaRowDTO:
+      type: object
+      properties:
+        memberUuid:
+          type: string
+        memberNombre:
+          type: string
+        memberApellido:
+          type: string
+        fechaInscripcion:
+          type: string
+          format: date
+        estado:
+          type: string
+          nullable: true
+          enum: [PRESENTE, AUSENTE]
+
+    AsistenciaLoteCommand:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AsistenciaLoteItemCommand'
+
+    AsistenciaLoteItemCommand:
+      type: object
+      required: [memberUuid, estado]
+      properties:
+        memberUuid:
+          type: string
+        estado:
+          type: string
+          enum: [PRESENTE, AUSENTE]
+
+    AsistenciaActividadConsultaDTO:
+      type: object
+      properties:
+        uuid:
+          type: string
+        slotUuid:
+          type: string
+        actividadUuid:
+          type: string
+        actividadNombre:
+          type: string
+        memberUuid:
+          type: string
+        memberNombre:
+          type: string
+        memberApellido:
+          type: string
+        fecha:
+          type: string
+          format: date
+        slotInicio:
+          type: string
+          format: date-time
+        estado:
+          type: string
+          enum: [PRESENTE, AUSENTE]
+
+    AsistenciaPaginateRequestDTO:
+      type: object
+      required: [actividadUuid]
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 20
+        actividadUuid:
+          type: string
+        fechaDesde:
+          type: string
+          format: date
+          description: Formato dd/MM/yyyy
+        fechaHasta:
+          type: string
+          format: date
+          description: Formato dd/MM/yyyy
+        memberUuid:
+          type: string
+          description: Filtro opcional por socio (portal profesor exige inscripciÃ³n activa en la actividad). Alias JSON `personaMemberUuid`.
+
+    CalendarioConsultaCommand:
+      type: object
+      required: [desde, hasta]
+      properties:
+        desde:
+          type: string
+          format: date
+        hasta:
+          type: string
+          format: date
+
+    CalendarioSlotDTO:
+      type: object
+      properties:
+        slotUuid:
+          type: string
+          nullable: true
+        eventoUuid:
+          type: string
+          nullable: true
+          description: Poblado solo para Ã­tems de evento de actividad
+        titulo:
+          type: string
+          nullable: true
+          description: TÃ­tulo del evento (solo eventos)
+        ubicacion:
+          type: string
+          nullable: true
+          description: UbicaciÃ³n del evento (solo eventos)
+        tipo:
+          type: string
+          enum: [ACTIVIDAD, AMENITY]
+          nullable: true
+        referenciaUuid:
+          type: string
+          nullable: true
+        referenciaNombre:
+          type: string
+          nullable: true
+        titularNombre:
+          type: string
+          nullable: true
+        titularApellido:
+          type: string
+          nullable: true
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+        estado:
+          type: string
+          enum: [PENDIENTE_DE_PAGO, CONFIRMADO, CANCELADO]
+
+    ActividadPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        search:
+          type: string
+        completa:
+          type: boolean
+          nullable: true
+
+    ProfesorPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        search:
+          type: string
+        estados:
+          type: array
+          items:
+            type: string
+            enum: [ACTIVO, INACTIVO]
+
+    RecepcionistaAltaCommand:
+      allOf:
+        - $ref: '#/components/schemas/MemberAltaUserFields'
+        - type: object
+          properties:
+            fechaAlta:
+              type: string
+              format: date
+
+    RecepcionistaPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        search:
+          type: string
+        estados:
+          type: array
+          items:
+            type: string
+            enum: [ACTIVO, INACTIVO]
+
+    ReservaPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        estados:
+          type: array
+          items:
+            type: string
+            enum: [PENDIENTE_SENA, CONFIRMADA, CANCELADA, VENCIDA]
+        amenityUuid:
+          type: string
+        memberUuid:
+          type: string
+        slotDesde:
+          type: string
+          format: date-time
+        slotHasta:
+          type: string
+          format: date-time
+        search:
+          type: string
+
+    CuotaPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        estados:
+          type: array
+          items:
+            type: string
+            enum: [PENDIENTE, PAGADA, VENCIDA, ANULADA]
+        tipos:
+          type: array
+          items:
+            type: string
+            enum: [SOCIAL, ACTIVIDAD]
+        search:
+          type: string
+        titularMemberUuid:
+          type: string
+        personaMemberUuid:
+          type: string
+        orden:
+          type: string
+          enum: [VENCIMIENTO_ASC, VENCIMIENTO_DESC, PERSONA_APELLIDO]
+          default: VENCIMIENTO_DESC
+
+    CuotaPaginateRowDTO:
+      type: object
+      properties:
+        cuotaUuid:
+          type: string
+        concepto:
+          type: string
+        tipo:
+          type: string
+        origen:
+          type: string
+        monto:
+          type: number
+        vencimiento:
+          type: string
+          format: date
+        estado:
+          type: string
+        diasMora:
+          type: integer
+        personaMemberUuid:
+          type: string
+        personaNombre:
+          type: string
+        personaApellido:
+          type: string
+        titularMemberUuid:
+          type: string
+        titularNombre:
+          type: string
+        titularApellido:
+          type: string
+
+    SpringPageCuotaPaginateRowDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/CuotaPaginateRowDTO'
+
+    SpringPageActividadDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActividadDTO'
+
+    SpringPageProfesorDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProfesorDTO'
+
+    SpringPageRecepcionistaDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecepcionistaDTO'
+
+    SpringPageReservaAmenityDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReservaAmenityDTO'
+
+    ActividadDTO:
+      type: object
+      properties:
+        actividadUuid:
+          type: string
+        nombre:
+          type: string
+        ubicacion:
+          type: string
+        cupoMaximo:
+          type: integer
+        diasSemana:
+          type: string
+        horaInicio:
+          type: string
+          format: time
+        horaFin:
+          type: string
+          format: time
+        importeCuota:
+          type: number
+        completa:
+          type: boolean
+        categorias:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoriaDTO'
+        profesores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfesorDTO'
+        inscriptos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActividadInscriptoDTO'
+
+    ActividadAltaCommand:
+      type: object
+      required: [nombre, ubicacion, cupoMaximo, diasSemana, horaInicio, horaFin, importeCuota]
+      properties:
+        nombre:
+          type: string
+        ubicacion:
+          type: string
+        cupoMaximo:
+          type: integer
+          minimum: 1
+        diasSemana:
+          type: string
+        horaInicio:
+          type: string
+          format: time
+        horaFin:
+          type: string
+          format: time
+        importeCuota:
+          type: number
+        profesorUuids:
+          type: array
+          items:
+            type: string
+        categoriaUuids:
+          type: array
+          items:
+            type: string
+          description: CategorÃ­as de la actividad. Omitir o enviar vacÃ­o para crearla sin categorÃ­as
+
+    ActividadEdicionCommand:
+      type: object
+      required: [nombre, ubicacion, cupoMaximo, diasSemana, horaInicio, horaFin, importeCuota]
+      properties:
+        nombre:
+          type: string
+        ubicacion:
+          type: string
+        cupoMaximo:
+          type: integer
+          minimum: 1
+        diasSemana:
+          type: string
+        horaInicio:
+          type: string
+          format: time
+        horaFin:
+          type: string
+          format: time
+        importeCuota:
+          type: number
+        categoriaUuids:
+          type: array
+          items:
+            type: string
+          description: Omitir para conservar las categorÃ­as actuales; enviar vacÃ­o para quitarlas todas
+
+    ProfesorDTO:
+      type: object
+      properties:
+        profesorUuid:
+          type: string
+        nombre:
+          type: string
+        apellido:
+          type: string
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO]
+        fechaAlta:
+          type: string
+          format: date
+        dni:
+          type: string
+        fechaNacimiento:
+          type: string
+          format: date
+          nullable: true
+        telefono:
+          type: string
+        email:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+
+    ActividadInscriptoDTO:
+      type: object
+      properties:
+        userUuid:
+          type: string
+        titularMemberUuid:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+        apellido:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        email:
+          type: string
+        dni:
+          type: string
+        fechaNacimiento:
+          type: string
+          format: date
+          nullable: true
+
+    RecepcionistaDTO:
+      type: object
+      properties:
+        recepcionistaUuid:
+          type: string
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+        fechaNacimiento:
+          type: string
+          format: date
+          nullable: true
+        telefono:
+          type: string
+        email:
+          type: string
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO]
+        fechaAlta:
+          type: string
+          format: date
+
+    CategoriaDTO:
+      type: object
+      properties:
+        categoriaUuid:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        edadMinima:
+          type: integer
+          nullable: true
+        edadMaxima:
+          type: integer
+          nullable: true
+
+    CategoriaAltaCommand:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        edadMinima:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 120
+        edadMaxima:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 120
+
+    CategoriaEdicionCommand:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        edadMinima:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 120
+        edadMaxima:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 120
+
+    CategoriaPaginateRequestDTO:
+      type: object
+      properties:
+        page:
+          type: integer
+          default: 1
+        size:
+          type: integer
+          default: 10
+        search:
+          type: string
+
+    SpringPageCategoriaDTO:
+      allOf:
+        - $ref: '#/components/schemas/SpringPage'
+        - type: object
+          properties:
+            content:
+              type: array
+              items:
+                $ref: '#/components/schemas/CategoriaDTO'
+
+    ReservaAmenityDTO:
+      type: object
+      properties:
+        reservaUuid:
+          type: string
+        amenityUuid:
+          type: string
+        amenityNombre:
+          type: string
+        memberUuid:
+          type: string
+        memberNombre:
+          type: string
+        memberApellido:
+          type: string
+        slotUuid:
+          type: string
+        slotInicio:
+          type: string
+          format: date-time
+        slotFin:
+          type: string
+          format: date-time
+        slotEstado:
+          type: string
+        montoTotal:
+          type: number
+        montoSena:
+          type: number
+        saldoPendiente:
+          type: number
+        estado:
+          type: string
+        venceSenaAt:
+          type: string
+          format: date-time
+        canceladaPorUuid:
+          type: string
+          nullable: true
+        canceladaAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReservaAmenityCobroCommand:
+      type: object
+      required: [canalCobro]
+      properties:
+        canalCobro:
+          type: string
+          enum: [MANUAL, MERCADO_PAGO]
+        monto:
+          type: number
+          description: Requerido para canal MANUAL
+        medioPago:
+          type: string
+          enum: [EFECTIVO, TRANSFERENCIA, MERCADO_PAGO, OTRO]
+        fecha:
+          type: string
+          format: date
+        observaciones:
+          type: string
+
+    ReservaAmenityCobroResultDTO:
+      type: object
+      properties:
+        reservaUuid:
+          type: string
+        tipoCobro:
+          type: string
+          enum: [SENA, SALDO, TOTAL]
+        monto:
+          type: number
+        concepto:
+          type: string
+        movimientoUuid:
+          type: string
+          nullable: true
+          description: Presente en cobro manual; null hasta webhook en Mercado Pago
+        qr:
+          type: string
+          nullable: true
+          description: QR base64 solo para canal MERCADO_PAGO
+
+    AccesoClubRegistroCommand:
+      type: object
+      required: [userUuid]
+      properties:
+        userUuid:
+          type: string
+          description: UUID del usuario (`auth_users.uuid`) a registrar en molinete/recepciÃ³n
+
+    AccesoClubRegistroDTO:
+      type: object
+      properties:
+        accesoUuid:
+          type: string
+        userUuid:
+          type: string
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+        tipo:
+          type: string
+          enum: [INGRESO, EGRESO]
+        memberEstado:
+          type: string
+          nullable: true
+          enum: [ACTIVO, MOROSO, INHABILITADO, SUSPENDIDO, INACTIVO]
+        advertencia:
+          type: string
+          nullable: true
+          description: Poblado cuando el socio estÃ¡ MOROSO
+        presente:
+          type: boolean
+          description: Estado de presencia tras el evento
+        fecha:
+          type: string
+          format: date-time
+          description: Formato dd/MM/yyyy HH:mm:ss en JSON
+
+    AccesoClubItemDTO:
+      type: object
+      properties:
+        accesoUuid:
+          type: string
+        userUuid:
+          type: string
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+        tipo:
+          type: string
+          enum: [INGRESO, EGRESO]
+        memberEstado:
+          type: string
+          nullable: true
+          enum: [ACTIVO, MOROSO, INHABILITADO, SUSPENDIDO, INACTIVO]
+        fecha:
+          type: string
+          format: date-time
+
+    ClubPresenciaItemDTO:
+      type: object
+      properties:
+        userUuid:
+          type: string
+        nombre:
+          type: string
+        apellido:
+          type: string
+        dni:
+          type: string
+        presente:
+          type: boolean
+        ultimoAccesoAt:
+          type: string
+          format: date-time

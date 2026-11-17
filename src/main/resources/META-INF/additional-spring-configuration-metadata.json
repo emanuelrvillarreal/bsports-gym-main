@@ -1,0 +1,25 @@
+{
+  "properties": [
+    {
+      "name": "logging.file.basename",
+      "type": "java.lang.String",
+      "description": "Nombre base de los archivos de log (logback-spring.xml). No usar logging.file.name: ese es el path completo de Spring Boot y no aplica a la rotacion diaria/semanal del proyecto."
+    },
+    {
+      "name": "crm.base.url",
+      "type": "java.lang.String",
+      "description": "Url base del CRM (blue-crm), incluyendo el context-path. Ejemplo: https://stg.blueopendata.com/blue-crm/api/. La usa CrmRestClientConfig para construir el cliente del modulo de integraciones. Si falta, la aplicacion arranca igual pero las llamadas al CRM se rechazan."
+    },
+    {
+      "name": "crm.api.token",
+      "type": "java.lang.String",
+      "description": "Token Bearer del sistema externo en el CRM (blue-crm). Es el JWT de larga duracion emitido al crear el sistema externo; el CRM lo compara byte a byte contra integraciones_sistemas_externos.token, por lo que no sirve generar uno nuevo por /auth/integration/login. Si falta, la aplicacion arranca igual pero las llamadas al CRM se rechazan."
+    },
+    {
+      "name": "crm.integracion.logs.max-payload-chars",
+      "type": "java.lang.Integer",
+      "description": "Maximo de caracteres que se guardan de cada payload (request, response y error) en la tabla crm_integracion_logs. Lo que excede se recorta. Es un parametro de tuning interno, no cambia por ambiente.",
+      "defaultValue": 100000
+    }
+  ]
+}

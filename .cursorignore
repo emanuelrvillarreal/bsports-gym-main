@@ -1,0 +1,147 @@
+﻿# Directorios y patrones generados por proyectos Java y Angular — excluidos del indice del agente
+
+# --- Maven ---
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# --- Gradle ---
+build/
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# --- Salida de compilacion y empaquetado ---
+bin/
+out/
+classes/
+test-classes/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# --- Codigo y recursos generados ---
+generated/
+generated-sources/
+generated-test-sources/
+generated-test-resources/
+apt_generated/
+.apt_generated/
+annotationProcessor/
+**/target/generated-sources/
+**/target/generated-test-sources/
+
+# --- Tests y cobertura ---
+surefire-reports/
+failsafe-reports/
+test-output/
+jacoco.exec
+*.exec
+site/
+coverage/
+.nyc_output/
+
+# --- Logs y temporales ---
+logs/
+*.log
+*.log.*
+*.tmp
+*.temp
+*.swp
+*~
+
+# --- IDEs: IntelliJ IDEA ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# --- IDEs: Eclipse / STS ---
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+.sts4-cache/
+.metadata/
+.recommenders/
+
+# --- IDEs: NetBeans ---
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# --- SonarQube / analisis estatico ---
+.sonar/
+.scannerwork/
+.sonarlint/
+
+# --- Docker (artefactos locales) ---
+.docker/
+
+# --- Caches ---
+.cache/
+
+# --- Node (tooling en repos Java) ---
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+
+# --- Angular / frontend ---
+dist/
+out-tsc/
+.angular/
+.ng_pkg_build/
+tmp/
+www/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Storybook
+storybook-static/
+
+# E2E: Cypress / Playwright
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Nx monorepo (frecuente con Angular)
+.nx/
+.nx/cache/
+
+# Ionic + Cordova/Capacitor
+platforms/
+plugins/
+ios/
+android/
+.capacitor/
+
+# Bundlers y caches frontend
+.turbo/
+.parcel-cache/
+.sass-cache/
+.vite/
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+Desktop.ini

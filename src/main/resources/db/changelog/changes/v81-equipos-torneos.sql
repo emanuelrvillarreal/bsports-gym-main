@@ -1,0 +1,168 @@
+--liquibase formatted sql
+
+-- changeset bsports-club:v81-equipos-torneos
+-- comment: Equipos y planteles deportivos (distintos de las actividades), jugadores con historial de altas,
+-- bajas y pases, torneos con participantes propios o rivales externos, partidos por fecha con resultado y
+-- estadisticas individuales por partido. Todo con company_id y baja logica.
+CREATE TABLE equipos_deportivos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  disciplina VARCHAR(80) NOT NULL,
+  categoria_id BIGINT NULL,
+  actividad_id BIGINT NULL,
+  temporada VARCHAR(40) NULL,
+  descripcion TEXT NULL,
+  activo TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_equipos_deportivos_uuid (uuid),
+  KEY idx_equipos_deportivos_company (company_id, status),
+  CONSTRAINT fk_equipos_deportivos_company FOREIGN KEY (company_id) REFERENCES companies (id),
+  CONSTRAINT fk_equipos_deportivos_categoria FOREIGN KEY (categoria_id) REFERENCES categorias (id),
+  CONSTRAINT fk_equipos_deportivos_actividad FOREIGN KEY (actividad_id) REFERENCES actividades (id)
+);
+
+CREATE TABLE equipos_deportivos_entrenadores (
+  equipo_id BIGINT NOT NULL,
+  profesor_id BIGINT NOT NULL,
+  PRIMARY KEY (equipo_id, profesor_id),
+  KEY idx_equipos_entrenadores_profesor (profesor_id),
+  CONSTRAINT fk_equipos_entrenadores_equipo FOREIGN KEY (equipo_id) REFERENCES equipos_deportivos (id),
+  CONSTRAINT fk_equipos_entrenadores_profesor FOREIGN KEY (profesor_id) REFERENCES profesores (id)
+);
+
+CREATE TABLE equipo_jugadores (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  equipo_id BIGINT NOT NULL,
+  member_id BIGINT NOT NULL,
+  dorsal INT NULL,
+  posicion VARCHAR(60) NULL,
+  capitan TINYINT(1) NOT NULL DEFAULT 0,
+  fecha_alta DATE NOT NULL,
+  fecha_baja DATE NULL,
+  motivo_baja VARCHAR(255) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_equipo_jugadores_uuid (uuid),
+  KEY idx_equipo_jugadores_equipo (equipo_id, status, fecha_baja),
+  KEY idx_equipo_jugadores_member (member_id),
+  CONSTRAINT fk_equipo_jugadores_equipo FOREIGN KEY (equipo_id) REFERENCES equipos_deportivos (id),
+  CONSTRAINT fk_equipo_jugadores_member FOREIGN KEY (member_id) REFERENCES members (id)
+);
+
+CREATE TABLE torneos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  disciplina VARCHAR(80) NOT NULL,
+  categoria_id BIGINT NULL,
+  temporada VARCHAR(40) NULL,
+  fecha_inicio DATE NULL,
+  fecha_fin DATE NULL,
+  estado VARCHAR(20) NOT NULL,
+  puntos_victoria INT NOT NULL DEFAULT 3,
+  puntos_empate INT NOT NULL DEFAULT 1,
+  puntos_derrota INT NOT NULL DEFAULT 0,
+  descripcion TEXT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_torneos_uuid (uuid),
+  KEY idx_torneos_company (company_id, status, estado),
+  CONSTRAINT fk_torneos_company FOREIGN KEY (company_id) REFERENCES companies (id),
+  CONSTRAINT fk_torneos_categoria FOREIGN KEY (categoria_id) REFERENCES categorias (id)
+);
+
+CREATE TABLE torneo_participantes (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  torneo_id BIGINT NOT NULL,
+  equipo_id BIGINT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_torneo_participantes_uuid (uuid),
+  KEY idx_torneo_participantes_torneo (torneo_id, status),
+  CONSTRAINT fk_torneo_participantes_torneo FOREIGN KEY (torneo_id) REFERENCES torneos (id),
+  CONSTRAINT fk_torneo_participantes_equipo FOREIGN KEY (equipo_id) REFERENCES equipos_deportivos (id)
+);
+
+CREATE TABLE torneo_partidos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  torneo_id BIGINT NOT NULL,
+  ronda VARCHAR(60) NOT NULL,
+  fecha_hora DATETIME NULL,
+  lugar VARCHAR(120) NULL,
+  local_id BIGINT NOT NULL,
+  visitante_id BIGINT NOT NULL,
+  tantos_local INT NULL,
+  tantos_visitante INT NULL,
+  estado VARCHAR(20) NOT NULL,
+  observaciones TEXT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_torneo_partidos_uuid (uuid),
+  KEY idx_torneo_partidos_torneo (torneo_id, status),
+  CONSTRAINT fk_torneo_partidos_torneo FOREIGN KEY (torneo_id) REFERENCES torneos (id),
+  CONSTRAINT fk_torneo_partidos_local FOREIGN KEY (local_id) REFERENCES torneo_participantes (id),
+  CONSTRAINT fk_torneo_partidos_visitante FOREIGN KEY (visitante_id) REFERENCES torneo_participantes (id)
+);
+
+CREATE TABLE partido_estadisticas (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  partido_id BIGINT NOT NULL,
+  jugador_id BIGINT NOT NULL,
+  tantos INT NOT NULL DEFAULT 0,
+  asistencias INT NOT NULL DEFAULT 0,
+  amonestaciones INT NOT NULL DEFAULT 0,
+  expulsiones INT NOT NULL DEFAULT 0,
+  figura TINYINT(1) NOT NULL DEFAULT 0,
+  observaciones VARCHAR(255) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_partido_estadisticas_uuid (uuid),
+  UNIQUE KEY uk_partido_estadisticas_jugador (partido_id, jugador_id),
+  CONSTRAINT fk_partido_estadisticas_partido FOREIGN KEY (partido_id) REFERENCES torneo_partidos (id),
+  CONSTRAINT fk_partido_estadisticas_jugador FOREIGN KEY (jugador_id) REFERENCES equipo_jugadores (id)
+);

@@ -1,0 +1,44 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+spring:
+  liquibase:
+    enabled: false
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+
+front:
+  url: http://localhost:4200
+
+captcha:
+  secret: test-captcha-secret
+  enabled: false
+
+mercado-pago:
+  credentials:
+    encryption-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+
+auth:
+  protocols: basic,jwt,tokens
+jwt:
+  secret: testSecretKeyTestSecretKeyTestSecretKeyTestSecretKey
+  expiration: 3600000

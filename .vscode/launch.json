@@ -1,0 +1,14 @@
+{
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot-Application<open-data-proyect>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.blue.open.Application",
+      "projectName": "open-data-proyect",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

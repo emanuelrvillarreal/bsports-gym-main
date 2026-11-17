@@ -1,0 +1,17 @@
+.git/
+.idea/
+.vscode/
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.angular/cache/
+.next/
+.nuxt/
+.turbo/
+coverage/
+target/
+.m2/
+.gradle/
+deploy/application.properties
+deploy/runtime.env

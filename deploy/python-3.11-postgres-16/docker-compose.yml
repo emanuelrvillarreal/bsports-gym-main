@@ -1,0 +1,51 @@
+name: ${CONTAINER_NAME}
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: ${CONTAINER_NAME}-postgres
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/python-3.11-postgres-16/Dockerfile
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT:-8000}"
+    env_file:
+      - path: ../runtime.env
+        required: false
+    volumes:
+      - ${LOGS_VOLUME:-/var/log}/${CONTAINER_NAME}:/app/logs
+    environment:
+      INTERNAL_PORT: ${INTERNAL_PORT:-8000}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASS}
+
+volumes:
+  postgres_data:
+    name: ${CONTAINER_NAME}_postgres_data

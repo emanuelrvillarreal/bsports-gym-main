@@ -1,0 +1,32 @@
+target
+/.env
+
+/db/dig_tmp.sql
+src/main/resources/application.properties
+logs
+.cursor
+.claude/skills/coding-principles/SKILL.md
+.claude/skills/sdd/SKILL.md
+.claude/skills/sdd/references/entregable-summary.md
+.claude/skills/sdd/references/explore-agent.md
+.claude/skills/sdd/references/implement-agent.md
+.claude/skills/sdd/references/implementation-template.md
+.claude/skills/sdd/references/install-skill-agent.md
+.claude/skills/sdd/references/orchestrator.md
+.claude/skills/sdd/references/plan-agent.md
+.claude/skills/sdd/references/plan-template.md
+.claude/skills/sdd/references/requirements-agent.md
+.claude/skills/sdd/references/spec-template.md
+.claude/skills/sdd/references/subagents-registry.md
+.claude/skills/sdd/references/validation-agent.md
+.claude/skills/sdd/references/validation-template.md
+src/main/java/com/blue/open/Crm - core.zip
+
+# --- Claves y archivos locales: NO subir (hay copias .example con los valores vacios) ---
+src/main/resources/application.local.properties
+src/main/resources/application.server.properties
+deploy.yml
+debug-*.log
+pathname
+*.zip
+.idea/

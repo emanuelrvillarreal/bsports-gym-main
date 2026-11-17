@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nueva solicitud de registro</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #070b12;
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      color: #f8ebeb;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      style="
+        width: 100%;
+        background:
+          radial-gradient(circle at top left, rgba(200, 86, 86, 0.26) 0%, rgba(200, 86, 86, 0) 34%),
+          radial-gradient(circle at bottom right, rgba(248, 56, 56, 0.18) 0%, rgba(248, 56, 56, 0) 36%),
+          linear-gradient(180deg, #09111d 0%, #05070b 100%);
+        padding: 34px 12px;
+      "
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            style="
+              max-width: 640px;
+              background-color: #0b1321;
+              border: 1px solid rgba(200, 86, 86, 0.28);
+              border-radius: 28px;
+              overflow: hidden;
+              box-shadow: 0 28px 60px rgba(0, 0, 0, 0.42);
+            "
+          >
+            <tr>
+              <td
+                style="
+                  padding: 0;
+                  background:
+                    linear-gradient(135deg, rgba(200, 86, 86, 0.22) 0%, rgba(200, 86, 86, 0) 36%),
+                    linear-gradient(145deg, #0f1728 0%, #0a1220 58%, #190d12 100%);
+                "
+              >
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="padding: 34px 34px 24px">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td valign="top">
+                            <p
+                              style="
+                                margin: 0 0 10px;
+                                font-size: 12px;
+                                line-height: 1.4;
+                                letter-spacing: 0.22em;
+                                text-transform: uppercase;
+                                color: #f1b7b7;
+                                font-weight: 800;
+                              "
+                            >
+                              Solicitud de registro pendiente
+                            </p>
+                            <h1
+                              style="
+                                margin: 0;
+                                font-size: 34px;
+                                line-height: 1.02;
+                                color: #fff8f7;
+                                font-weight: 900;
+                                text-transform: uppercase;
+                                letter-spacing: -0.03em;
+                              "
+                            >
+                              Nueva solicitud
+                            </h1>
+                            <p
+                              style="
+                                margin: 12px 0 0;
+                                font-size: 14px;
+                                line-height: 1.6;
+                                color: #c9d1de;
+                                font-weight: 700;
+                                text-transform: uppercase;
+                                letter-spacing: 0.08em;
+                              "
+                            >
+                              {club}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0 34px 30px">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td
+                            style="
+                              border: 1px solid rgba(255, 255, 255, 0.08);
+                              border-radius: 20px;
+                              padding: 22px 24px;
+                              background:
+                                linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+                                linear-gradient(135deg, rgba(7, 14, 25, 0.84), rgba(14, 23, 40, 0.92));
+                            "
+                          >
+                            <p
+                              style="
+                                margin: 0 0 8px;
+                                font-size: 13px;
+                                line-height: 1.5;
+                                color: #bfc8d7;
+                                text-transform: uppercase;
+                                letter-spacing: 0.14em;
+                                font-weight: 800;
+                              "
+                            >
+                              Información de la solicitud
+                            </p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Tipo:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{tipo}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Nombre:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{nombre}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Apellido:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{apellido}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Email:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{email}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>DNI:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{dni}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Teléfono:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{telefono}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Fecha nacimiento:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{fechaNacimiento}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Parentesco:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{parentesco}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Titular:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{titular}</td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 8px 0; color: #aeb8c8; font-size: 13px;"><strong>Fecha solicitud:</strong></td>
+                                <td style="padding: 8px 0; color: #eef2f8; font-size: 13px;">{fechaSolicitud}</td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 0 34px 16px">
+                <p
+                  style="
+                    margin: 0 0 18px;
+                    font-size: 16px;
+                    line-height: 1.8;
+                    color: #c7cfdb;
+                  "
+                >
+                  Acceda al backoffice para revisar, aprobar o rechazar esta solicitud de registro.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 10px 34px 0">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td
+                      style="
+                        border-top: 1px solid rgba(255, 255, 255, 0.08);
+                        padding-top: 22px;
+                      "
+                    >
+                      <p
+                        style="
+                          margin: 0 0 10px;
+                          font-size: 13px;
+                          line-height: 1.7;
+                          color: #aeb8c8;
+                        "
+                      >
+                        Este es un correo automático de notificación del sistema.
+                      </p>
+                      <p
+                        style="
+                          margin: 0;
+                          font-size: 13px;
+                          line-height: 1.7;
+                          color: #aeb8c8;
+                        "
+                      >
+                        Por favor no responda a este correo.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding: 26px 34px 34px">
+                <p
+                  style="
+                    margin: 0 0 6px;
+                    font-size: 12px;
+                    line-height: 1.5;
+                    color: #f1b7b7;
+                    font-weight: 800;
+                    letter-spacing: 0.16em;
+                    text-transform: uppercase;
+                  "
+                >
+                  Blue Open Data
+                </p>
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 12px;
+                    line-height: 1.6;
+                    color: #8f9bb0;
+                  "
+                >
+                  Plataforma de gestión para gimnasios · B Sports Gym
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

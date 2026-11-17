@@ -1,0 +1,18 @@
+name: ${CONTAINER_NAME}
+
+services:
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/angular-21-node-22/Dockerfile
+      args:
+        NG_BUILD_CONFIGURATION: ${NG_BUILD_CONFIGURATION:-production}
+        NG_APP_BASE_HREF: ${NG_APP_BASE_HREF:-/}
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file:
+      - path: ../runtime.env
+        required: false
+    ports:
+      - "${EXTERNAL_PORT}:80"

@@ -1,0 +1,19 @@
+package com.blue.open.Code.Entity.DTO;
+
+import com.blue.open.Code.Entity.Enums.MemberEstadoEnum;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Setter
+public class MemberPaginateRequestDTO {
+
+    private int page = 1;
+    private int size = 10;
+    private String search;
+    private List<MemberEstadoEnum> estados = new ArrayList<>();
+    private boolean titular;
+}

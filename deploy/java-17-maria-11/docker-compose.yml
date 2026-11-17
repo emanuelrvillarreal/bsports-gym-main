@@ -1,0 +1,58 @@
+name: ${CONTAINER_NAME}
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: ${CONTAINER_NAME}-mariadb
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MYSQL_DB}
+      MARIADB_USER: ${MYSQL_USER}
+      MARIADB_PASSWORD: ${MYSQL_PASS}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "${MYSQL_EXTERNAL_PORT}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/java-17-maria-11/Dockerfile
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT}"
+    env_file:
+      - path: ../runtime.env
+        required: false
+    volumes:
+      - ../application.properties:/config/application.properties:ro
+      - ${LOGS_VOLUME:-/var/log}/${CONTAINER_NAME}:/app/logs
+    environment:
+      SERVER_PORT: ${INTERNAL_PORT}
+      SPRING_CONFIG_LOCATION: optional:file:/config/application.properties
+      LOGGING_FILE_PATH: /app/logs
+      LOGGING_FILE_BASENAME: ${CONTAINER_NAME}
+      MYSQL_HOST: mariadb
+      MYSQL_PORT: "3306"
+      MYSQL_DB: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASS: ${MYSQL_PASS}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mariadb:3306/${MYSQL_DB}?sessionVariables=sql_mode=''
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASS}
+
+volumes:
+  mariadb_data:
+    name: ${CONTAINER_NAME}_mariadb_data

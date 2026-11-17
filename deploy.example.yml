@@ -1,0 +1,78 @@
+version: 1
+
+local:
+  bsports-club:
+    port: 7036
+    stack: spring_maria
+
+    env:
+      RESTART_POLICY: "no"
+      FRONT_URL: "http://localhost:4200"
+      SM3_URL: "https://stg.blueopendata.com/sm3/api"
+      SM3_PROYECTO: "bsports-club"
+      SM3_USER: "admin"
+      SM3_PASS: "CAMBIAR"
+      MERCADO_PAGO_ENCRYPTION_KEY: "CAMBIAR"
+      # CRM (blue-crm): CRM_API_TOKEN es el JWT del sistema externo, se obtiene del CRM
+      CRM_BASE_URL: "http://host.docker.internal:7070/api/"
+      CRM_API_TOKEN: "CAMBIAR"
+
+    mysql_user: bsports-club
+    mysql_db: bsports-club
+    mysql_pass: "CAMBIAR"
+    mysql_external_port: 5036
+    composer_file: spring-3.9-java-17-maria-11/docker-compose.yml
+    application_properties: src/main/resources/application.server.properties
+
+
+st7:
+   bsports-club:
+     branch: stg
+     port: 7036
+     path: bsports-club
+     stack: spring_maria
+
+     env:
+      FRONT_URL: "https://stg.blueopendata.com/bsports-club"
+      SM3_URL: "https://stg.blueopendata.com/sm3/api"
+      SM3_PROYECTO: "bsports-club"
+      SM3_USER: "admin"
+      SM3_PASS: "CAMBIAR"
+      MERCADO_PAGO_ENCRYPTION_KEY: "CAMBIAR"
+      # CRM (blue-crm): CRM_API_TOKEN es el JWT del sistema externo, se obtiene del CRM
+      CRM_BASE_URL: "https://stg.blueopendata.com/blue-crm/api/"
+      CRM_API_TOKEN: "CAMBIAR"
+
+     mysql_user: bsports-club
+     mysql_db: bsports-club
+     mysql_pass: "CAMBIAR"
+     mysql_external_port: 5036
+     composer_file: spring-3.9-java-17-maria-11/docker-compose.yml
+     nginx_config: spring-3.9-java-17-maria-11/nginx.spring-boot-api.conf
+     application_properties: src/main/resources/application.server.properties
+
+st8:
+   bsports-club:
+     branch: main
+     port: 7036
+     path: bsports-club
+     stack: spring_maria
+
+     env:
+      FRONT_URL: "https://uat.blueopendata.com/bsports-club"
+      SM3_URL: "https://stg.blueopendata.com/sm3/api"
+      SM3_PROYECTO: "bsports-club"
+      SM3_USER: "admin"
+      SM3_PASS: "CAMBIAR"
+      MERCADO_PAGO_ENCRYPTION_KEY: "CAMBIAR"
+      # CRM (blue-crm): CRM_API_TOKEN es el JWT del sistema externo, se obtiene del CRM
+      CRM_BASE_URL: "https://uat.blueopendata.com/blue-crm/api/"
+      CRM_API_TOKEN: "CAMBIAR"
+
+     mysql_user: bsports-club
+     mysql_db: bsports-club
+     mysql_pass: "CAMBIAR"
+     mysql_external_port: 5036
+     composer_file: spring-3.9-java-17-maria-11/docker-compose.yml
+     nginx_config: spring-3.9-java-17-maria-11/nginx.spring-boot-api.conf
+     application_properties: src/main/resources/application.server.properties

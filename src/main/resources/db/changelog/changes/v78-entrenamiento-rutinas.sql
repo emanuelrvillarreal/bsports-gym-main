@@ -1,0 +1,193 @@
+--liquibase formatted sql
+
+-- changeset bsports-club:v78-entrenamiento-rutinas
+-- comment: Modulo de entrenamiento: biblioteca de ejercicios por club, rutinas organizadas por dias con sus
+-- ejercicios (series, repeticiones, carga, descanso), asignaciones a socios, seguimiento de sesiones e
+-- historial de cambios. Todo con company_id para aislar clubes y baja logica (status).
+CREATE TABLE ejercicios (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  descripcion TEXT NULL,
+  disciplina VARCHAR(80) NULL,
+  grupo_muscular VARCHAR(120) NULL,
+  tipo VARCHAR(20) NOT NULL,
+  dificultad VARCHAR(20) NOT NULL,
+  imagen_url VARCHAR(500) NULL,
+  video_url VARCHAR(500) NULL,
+  indicaciones TEXT NULL,
+  creado_por BIGINT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_ejercicios_uuid (uuid),
+  KEY idx_ejercicios_company (company_id, status),
+  CONSTRAINT fk_ejercicios_company FOREIGN KEY (company_id) REFERENCES companies (id),
+  CONSTRAINT fk_ejercicios_creado_por FOREIGN KEY (creado_por) REFERENCES auth_users (id)
+);
+
+CREATE TABLE rutinas (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  objetivo TEXT NULL,
+  disciplina VARCHAR(80) NULL,
+  actividad_id BIGINT NULL,
+  profesor_id BIGINT NULL,
+  creada_por BIGINT NOT NULL,
+  fecha_inicio DATE NULL,
+  fecha_fin DATE NULL,
+  observaciones TEXT NULL,
+  estado VARCHAR(20) NOT NULL,
+  reemplaza_a_id BIGINT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutinas_uuid (uuid),
+  KEY idx_rutinas_company (company_id, status, estado),
+  KEY idx_rutinas_profesor (profesor_id),
+  CONSTRAINT fk_rutinas_company FOREIGN KEY (company_id) REFERENCES companies (id),
+  CONSTRAINT fk_rutinas_actividad FOREIGN KEY (actividad_id) REFERENCES actividades (id),
+  CONSTRAINT fk_rutinas_profesor FOREIGN KEY (profesor_id) REFERENCES profesores (id),
+  CONSTRAINT fk_rutinas_creada_por FOREIGN KEY (creada_por) REFERENCES auth_users (id),
+  CONSTRAINT fk_rutinas_reemplaza FOREIGN KEY (reemplaza_a_id) REFERENCES rutinas (id)
+);
+
+CREATE TABLE rutina_dias (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  rutina_id BIGINT NOT NULL,
+  orden INT NOT NULL,
+  nombre VARCHAR(80) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutina_dias_uuid (uuid),
+  KEY idx_rutina_dias_rutina (rutina_id, status),
+  CONSTRAINT fk_rutina_dias_rutina FOREIGN KEY (rutina_id) REFERENCES rutinas (id)
+);
+
+CREATE TABLE rutina_items (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  dia_id BIGINT NOT NULL,
+  ejercicio_id BIGINT NOT NULL,
+  orden INT NOT NULL,
+  series INT NULL,
+  repeticiones VARCHAR(40) NULL,
+  carga VARCHAR(60) NULL,
+  descanso_segundos INT NULL,
+  observaciones VARCHAR(500) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutina_items_uuid (uuid),
+  KEY idx_rutina_items_dia (dia_id, status),
+  CONSTRAINT fk_rutina_items_dia FOREIGN KEY (dia_id) REFERENCES rutina_dias (id),
+  CONSTRAINT fk_rutina_items_ejercicio FOREIGN KEY (ejercicio_id) REFERENCES ejercicios (id)
+);
+
+CREATE TABLE rutina_asignaciones (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  company_id BIGINT NOT NULL,
+  rutina_id BIGINT NOT NULL,
+  member_id BIGINT NOT NULL,
+  asignada_por BIGINT NOT NULL,
+  fecha_asignacion DATE NOT NULL,
+  fecha_inicio DATE NULL,
+  fecha_fin DATE NULL,
+  fecha_finalizacion DATE NULL,
+  estado VARCHAR(20) NOT NULL,
+  observaciones TEXT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutina_asignaciones_uuid (uuid),
+  KEY idx_rutina_asignaciones_member (member_id, status, estado),
+  KEY idx_rutina_asignaciones_rutina (rutina_id, status),
+  CONSTRAINT fk_rutina_asignaciones_company FOREIGN KEY (company_id) REFERENCES companies (id),
+  CONSTRAINT fk_rutina_asignaciones_rutina FOREIGN KEY (rutina_id) REFERENCES rutinas (id),
+  CONSTRAINT fk_rutina_asignaciones_member FOREIGN KEY (member_id) REFERENCES members (id),
+  CONSTRAINT fk_rutina_asignaciones_user FOREIGN KEY (asignada_por) REFERENCES auth_users (id)
+);
+
+CREATE TABLE rutina_seguimientos (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  asignacion_id BIGINT NOT NULL,
+  fecha DATE NOT NULL,
+  esfuerzo INT NULL,
+  observaciones TEXT NULL,
+  registrado_por BIGINT NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutina_seguimientos_uuid (uuid),
+  KEY idx_rutina_seguimientos_asignacion (asignacion_id, status),
+  CONSTRAINT fk_rutina_seguimientos_asignacion FOREIGN KEY (asignacion_id) REFERENCES rutina_asignaciones (id),
+  CONSTRAINT fk_rutina_seguimientos_user FOREIGN KEY (registrado_por) REFERENCES auth_users (id)
+);
+
+CREATE TABLE rutina_seguimiento_items (
+  seguimiento_id BIGINT NOT NULL,
+  item_id BIGINT NOT NULL,
+  PRIMARY KEY (seguimiento_id, item_id),
+  KEY idx_rutina_seguimiento_items_item (item_id),
+  CONSTRAINT fk_rutina_seguimiento_items_seguimiento FOREIGN KEY (seguimiento_id) REFERENCES rutina_seguimientos (id),
+  CONSTRAINT fk_rutina_seguimiento_items_item FOREIGN KEY (item_id) REFERENCES rutina_items (id)
+);
+
+CREATE TABLE rutina_historial (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  status TINYINT NOT NULL DEFAULT 0,
+  uuid CHAR(36) NOT NULL,
+  id_user_created BIGINT NULL,
+  id_user_updated BIGINT NULL,
+  id_user_deleted BIGINT NULL,
+  date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  date_deleted TIMESTAMP NULL,
+  rutina_id BIGINT NOT NULL,
+  user_id BIGINT NULL,
+  fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  accion VARCHAR(30) NOT NULL,
+  detalle VARCHAR(500) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_rutina_historial_uuid (uuid),
+  KEY idx_rutina_historial_rutina (rutina_id),
+  CONSTRAINT fk_rutina_historial_rutina FOREIGN KEY (rutina_id) REFERENCES rutinas (id),
+  CONSTRAINT fk_rutina_historial_user FOREIGN KEY (user_id) REFERENCES auth_users (id)
+);

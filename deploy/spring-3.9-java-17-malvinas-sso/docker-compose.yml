@@ -1,0 +1,23 @@
+name: ${CONTAINER_NAME}
+
+services:
+  app:
+    image: ${CONTAINER_NAME}:latest
+    build:
+      context: ../..
+      dockerfile: deploy/spring-3.9-java-17-malvinas-sso/Dockerfile
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    ports:
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT}"
+    env_file:
+      - path: ../.env
+        required: false
+      - path: ../runtime.env
+        required: false
+    volumes:
+      - ../application.properties:/config/application.properties:ro
+      - ${LOGS_VOLUME:-/var/log}/${CONTAINER_NAME}:/app/logs
+    environment:
+      SERVER_PORT: ${INTERNAL_PORT}
+      SPRING_CONFIG_LOCATION: optional:file:/config/application.properties
